@@ -66,6 +66,7 @@ local SystemStatus = {}
 -- =============================================================================
 
 local ScreenGui
+local ToggleButtonGui
 local MainFrame
 local EventLogFrame
 local DashboardFrame
@@ -73,7 +74,7 @@ local CommandFrame
 local DebugFrame
 
 local function CreateScreenGui()
-	-- Ana ScreenGui
+	-- Ana ScreenGui (Panel için)
 	ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = "AdminPanel"
 	ScreenGui.ResetOnSpawn = false
@@ -87,6 +88,7 @@ local function CreateScreenGui()
 	MainFrame.Size = UDim2.new(0.8, 0, 0.8, 0)
 	MainFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
 	MainFrame.BackgroundColor3 = AdminClient.Config.Theme.Background
+	MainFrame.BackgroundTransparency = 0 -- Tam opak
 	MainFrame.BorderSizePixel = 0
 	MainFrame.Parent = ScreenGui
 	
@@ -95,31 +97,50 @@ local function CreateScreenGui()
 	corner.CornerRadius = UDim.new(0, 12)
 	corner.Parent = MainFrame
 	
-	-- Shadow (Gölge efekti için)
-	local shadow = Instance.new("ImageLabel")
+	-- Stroke (Kenarlık)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = AdminClient.Config.Theme.Accent
+	stroke.Thickness = 2
+	stroke.Transparency = 0.5
+	stroke.Parent = MainFrame
+	
+	-- Shadow (Gölge efekti için) - Daha güzel gölge
+	local shadow = Instance.new("Frame")
 	shadow.Name = "Shadow"
-	shadow.Size = UDim2.new(1, 40, 1, 40)
-	shadow.Position = UDim2.new(0, -20, 0, -20)
-	shadow.BackgroundTransparency = 1
-	shadow.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png" -- Placeholder
-	shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-	shadow.ImageTransparency = 0.7
-	shadow.ScaleType = Enum.ScaleType.Slice
-	shadow.SliceCenter = Rect.new(20, 20, 80, 80)
+	shadow.Size = UDim2.new(1, 30, 1, 30)
+	shadow.Position = UDim2.new(0, -15, 0, -15)
+	shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.BackgroundTransparency = 0.8
+	shadow.BorderSizePixel = 0
 	shadow.ZIndex = -1
 	shadow.Parent = MainFrame
+	
+	local shadowCorner = Instance.new("UICorner")
+	shadowCorner.CornerRadius = UDim.new(0, 15)
+	shadowCorner.Parent = shadow
 	
 	-- Başlık
 	local titleBar = Instance.new("Frame")
 	titleBar.Name = "TitleBar"
 	titleBar.Size = UDim2.new(1, 0, 0, 50)
 	titleBar.BackgroundColor3 = AdminClient.Config.Theme.Panel
+	titleBar.BackgroundTransparency = 0 -- Tam opak
 	titleBar.BorderSizePixel = 0
 	titleBar.Parent = MainFrame
 	
 	local titleCorner = Instance.new("UICorner")
 	titleCorner.CornerRadius = UDim.new(0, 12)
 	titleCorner.Parent = titleBar
+	
+	-- Title bar alt sınır (tab bar ile ayrım için)
+	local titleSeparator = Instance.new("Frame")
+	titleSeparator.Name = "Separator"
+	titleSeparator.Size = UDim2.new(1, 0, 0, 2)
+	titleSeparator.Position = UDim2.new(0, 0, 1, 0)
+	titleSeparator.BackgroundColor3 = AdminClient.Config.Theme.Accent
+	titleSeparator.BackgroundTransparency = 0.5
+	titleSeparator.BorderSizePixel = 0
+	titleSeparator.Parent = titleBar
 	
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
@@ -156,34 +177,56 @@ local function CreateScreenGui()
 	-- Tab Butonları
 	local tabBar = Instance.new("Frame")
 	tabBar.Name = "TabBar"
-	tabBar.Size = UDim2.new(1, 0, 0, 40)
+	tabBar.Size = UDim2.new(1, 0, 0, 45)
 	tabBar.Position = UDim2.new(0, 0, 0, 55)
 	tabBar.BackgroundColor3 = AdminClient.Config.Theme.Panel
+	tabBar.BackgroundTransparency = 0 -- Tam opak
 	tabBar.BorderSizePixel = 0
 	tabBar.Parent = MainFrame
 	
 	local tabLayout = Instance.new("UIListLayout")
 	tabLayout.FillDirection = Enum.FillDirection.Horizontal
 	tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	tabLayout.Padding = UDim.new(0, 5)
+	tabLayout.Padding = UDim.new(0, 8)
 	tabLayout.Parent = tabBar
+	
+	local tabPadding = Instance.new("UIPadding")
+	tabPadding.PaddingLeft = UDim.new(0, 10)
+	tabPadding.PaddingRight = UDim.new(0, 10)
+	tabPadding.PaddingTop = UDim.new(0, 5)
+	tabPadding.PaddingBottom = UDim.new(0, 5)
+	tabPadding.Parent = tabBar
 	
 	local tabs = {"Dashboard", "Events", "Commands", "Debug"}
 	for _, tabName in ipairs(tabs) do
 		local tabButton = Instance.new("TextButton")
 		tabButton.Name = tabName .. "Tab"
 		tabButton.Size = UDim2.new(0.2, -10, 1, -10)
-		tabButton.Position = UDim2.new(0, 5, 0, 5)
 		tabButton.BackgroundColor3 = AdminClient.Config.Theme.Accent
+		tabButton.BackgroundTransparency = 0 -- Tam opak
+		tabButton.BorderSizePixel = 0
 		tabButton.Text = tabName
 		tabButton.TextColor3 = AdminClient.Config.Theme.Text
 		tabButton.TextSize = 16
-		tabButton.Font = Enum.Font.Gotham
+		tabButton.Font = Enum.Font.GothamBold
 		tabButton.Parent = tabBar
 		
 		local tabCorner = Instance.new("UICorner")
-		tabCorner.CornerRadius = UDim.new(0, 6)
+		tabCorner.CornerRadius = UDim.new(0, 8)
 		tabCorner.Parent = tabButton
+		
+		-- Hover effect
+		tabButton.MouseEnter:Connect(function()
+			if CurrentTab ~= tabName then
+				tabButton.BackgroundColor3 = Color3.fromRGB(120, 170, 255)
+			end
+		end)
+		
+		tabButton.MouseLeave:Connect(function()
+			if CurrentTab ~= tabName then
+				tabButton.BackgroundColor3 = AdminClient.Config.Theme.Accent
+			end
+		end)
 		
 		tabButton.MouseButton1Click:Connect(function()
 			AdminClient.SwitchTab(tabName)
@@ -193,9 +236,10 @@ local function CreateScreenGui()
 	-- İçerik Alanı
 	local contentFrame = Instance.new("Frame")
 	contentFrame.Name = "ContentFrame"
-	contentFrame.Size = UDim2.new(1, -20, 1, -115)
-	contentFrame.Position = UDim2.new(0, 10, 0, 105)
+	contentFrame.Size = UDim2.new(1, -20, 1, -120)
+	contentFrame.Position = UDim2.new(0, 10, 0, 110)
 	contentFrame.BackgroundTransparency = 1
+	contentFrame.BorderSizePixel = 0
 	contentFrame.Parent = MainFrame
 	
 	-- Dashboard Frame
@@ -213,9 +257,21 @@ local function CreateScreenGui()
 	-- İlk tab'ı göster
 	AdminClient.SwitchTab("Dashboard")
 	
-	-- Floating Toggle Button (Always visible - outside MainFrame)
+	DebugConfig.Info("AdminClient", "UI Created Successfully")
+end
+
+local function CreateToggleButton()
+	-- Ayrı ScreenGui (Toggle Button için - Her zaman görünür)
+	ToggleButtonGui = Instance.new("ScreenGui")
+	ToggleButtonGui.Name = "AdminToggleButton"
+	ToggleButtonGui.ResetOnSpawn = false
+	ToggleButtonGui.DisplayOrder = 999
+	ToggleButtonGui.Enabled = true -- Her zaman görünür
+	ToggleButtonGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+	
+	-- Floating Toggle Button
 	local toggleButton = Instance.new("TextButton")
-	toggleButton.Name = "AdminToggleButton"
+	toggleButton.Name = "ToggleButton"
 	toggleButton.Size = UDim2.new(0, 60, 0, 60)
 	toggleButton.Position = UDim2.new(1, -80, 1, -80)
 	toggleButton.AnchorPoint = Vector2.new(0, 0)
@@ -225,7 +281,8 @@ local function CreateScreenGui()
 	toggleButton.TextSize = 32
 	toggleButton.Font = Enum.Font.GothamBold
 	toggleButton.ZIndex = 1000
-	toggleButton.Parent = ScreenGui
+	toggleButton.BorderSizePixel = 0
+	toggleButton.Parent = ToggleButtonGui
 	
 	local toggleCorner = Instance.new("UICorner")
 	toggleCorner.CornerRadius = UDim.new(0.5, 0) -- Circular
@@ -247,9 +304,7 @@ local function CreateScreenGui()
 	
 	-- Button click handler
 	toggleButton.MouseButton1Click:Connect(function()
-		AdminClient.ToggleUI()
-		
-		-- Button animation
+		-- Click animation
 		local originalSize = toggleButton.Size
 		toggleButton:TweenSize(
 			UDim2.new(0, 55, 0, 55),
@@ -267,6 +322,8 @@ local function CreateScreenGui()
 				)
 			end
 		)
+		
+		AdminClient.ToggleUI()
 	end)
 	
 	-- Hover effects
@@ -288,7 +345,8 @@ local function CreateScreenGui()
 		tween:Play()
 	end)
 	
-	DebugConfig.Info("AdminClient", "UI Created Successfully")
+	DebugConfig.Info("AdminClient", "Toggle Button Created Successfully")
+end
 end
 
 -- =============================================================================
@@ -688,6 +746,18 @@ function AdminClient.SwitchTab(tabName)
 	CommandFrame.Visible = false
 	DebugFrame.Visible = false
 	
+	-- Tab butonlarını güncelle (aktif tab'ı vurgula)
+	local tabBar = MainFrame:FindFirstChild("TabBar")
+	if tabBar then
+		for _, child in ipairs(tabBar:GetChildren()) do
+			if child:IsA("TextButton") then
+				local isActive = child.Name == (tabName .. "Tab")
+				child.BackgroundColor3 = isActive and Color3.fromRGB(70, 130, 255) or AdminClient.Config.Theme.Accent
+				child.Font = isActive and Enum.Font.GothamBold or Enum.Font.Gotham
+			end
+		end
+	end
+	
 	-- Seçili frame'i göster
 	if tabName == "Dashboard" then
 		DashboardFrame.Visible = true
@@ -1009,6 +1079,7 @@ function AdminClient.Initialize()
 	
 	-- UI oluştur
 	CreateScreenGui()
+	CreateToggleButton()
 	
 	-- Klavye kısayolu
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -1026,7 +1097,7 @@ function AdminClient.Initialize()
 	EventLogRemote:FireServer("RequestHistory")
 	
 	DebugConfig.Info("AdminClient", "Admin Client Initialized Successfully ✅")
-	AdminClient.ShowNotification("Admin Panel Hazır (F2 ile aç)", "success")
+	AdminClient.ShowNotification("Admin Panel Hazır 🔧 (F2 veya butona tıkla)", "success")
 end
 
 -- Otomatik başlatma
