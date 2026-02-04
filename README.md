@@ -5265,6 +5265,62 @@ end)
 
 ----------------------------------------------------------
 
+ADMIN PANEL KULLANIM KILAVUZU :
+
+-- 🛡️ ADMIN PANEL SİSTEMİ
+
+-- DOSYA YAPISI:
+-- 1. ServerScriptService > Systems > AdminManager (Script)
+-- 2. StarterPlayer > StarterPlayerScripts > AdminClient (LocalScript)
+-- 3. ReplicatedStorage > Remotes > AdminEvent (RemoteFunction)
+-- 4. ReplicatedStorage > Remotes > EventNotification (RemoteEvent)
+-- 5. ReplicatedStorage > Remotes > EventVFXTrigger (RemoteEvent)
+
+-- ÖZELLİKLER:
+-- ✅ Admin kontrolü (OnServerInvoke ile)
+-- ✅ Sol tarafta buton (🛡️) - Position: (0, 20, 0.37, -30)
+-- ✅ 7 farklı event tipi:
+--    - 2X IQ (🧠)
+--    - 2X Damage (⚔️)
+--    - 2X Coins (💰)
+--    - 2X Luck (🍀)
+--    - Free Spins (🎰)
+--    - Boss Hunt (👹)
+--    - Treasure Rain (💎)
+-- ✅ Event START/STOP kontrolleri
+-- ✅ Announcement sistemi (📢)
+-- ✅ Sağ üstte event bildirimleri
+-- ✅ MessagingService ile cross-server desteği
+-- ✅ DataStore ile kalıcı event durumu
+-- ✅ Admin olmayan kullanıcılar butonu göremez
+
+-- ADMIN EKLEME:
+-- AdminManager içindeki Admins tablosuna isim ekleyin:
+-- Admins = {
+--     ["ChrolloLucifer"] = true,
+--     ["YeniAdminIsmi"] = true,
+-- }
+
+-- KULLANIM:
+-- 1. Oyuna admin hesabı ile giriş yapın
+-- 2. Sol tarafta 🛡️ simgeli butona tıklayın
+-- 3. Panel açılacak, 3 sekme göreceksiniz:
+--    - 🎉 Events: Event başlatma/durdurma
+--    - 📢 Announce: Duyuru gönderme
+--    - 👥 Players: Oyuncu listesi
+-- 4. Event başlatmak için ilgili event'in START butonuna basın
+-- 5. Event durdurmak için STOP butonuna basın
+-- 6. Duyuru göndermek için mesajı yazıp SEND'e basın
+
+-- NOT:
+-- - Her seferinde sadece 1 event aktif olabilir
+-- - Event'ler varsayılan olarak 1 saat sürer (3600 saniye)
+-- - Event'ler tüm serverlarda senkronize çalışır (MessagingService)
+-- - Event durumu DataStore'da saklanır (server yeniden başlarsa devam eder)
+-- - Event bildirimleri sağ üstte 5 saniye boyunca görünür
+
+----------------------------------------------------------
+
 
 Roblox oyunu geliştiriyorum ve yardımına ihtiyacım var
 
