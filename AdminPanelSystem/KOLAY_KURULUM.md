@@ -1,5 +1,29 @@
 # 🎮 KOLAY KURULUM REHBERİ
 
+## ⚠️ ÖNEMLİ UYARI - ÖNCE BU KISMI OKU!
+
+**Eğer eski remote'larınız varsa (8 adet gibi), önce temizlik yapın!**
+
+### 🗑️ Silmeniz Gereken Eski Remote'lar:
+
+Kodları detaylı inceledim. **Sadece 3 RemoteEvent kullanılıyor!** Eğer şunlar varsa silin:
+
+❌ **SİLİNECEKLER:**
+- AdminCommandRemote (RemoteFunction) - KULLANILMIYOR
+- AdminControlBindable (BindableEvent) - KULLANILMIYOR  
+- AdminEvent (RemoteEvent) - KULLANILMIYOR
+- EventLogRemote (RemoteEvent) - ESKİ İSİM
+- AdminDataRemote (RemoteEvent) - ESKİ İSİM
+
+✅ **TUTULACAKLAR (Sadece bu 3!):**
+- AdminCommand (RemoteEvent) ← YENİ
+- AdminDataUpdate (RemoteEvent) ← YENİ
+- EventLogUpdate (RemoteEvent) ← YENİ
+
+📖 **Detaylı silme rehberi:** `ESKI_DOSYALAR_SIL.md` dosyasına bakın!
+
+---
+
 ## 📋 İçindekiler
 1. [Yapı Görünümü](#yapı-görünümü)
 2. [Nesne Tipleri Açıklaması](#nesne-tipleri-açıklaması)
@@ -29,9 +53,9 @@ Roblox Studio'da oluşturacağınız yapı:
 │   │   └── 📘 DebugConfig (ModuleScript)
 │   └── 📁 Remotes
 │       └── 📁 Administration
-│           ├── 📡 AdminDataRemote (RemoteEvent)
-│           ├── 📞 AdminCommandRemote (RemoteFunction)
-│           └── 📡 EventLogRemote (RemoteEvent)
+│           ├── 📡 AdminCommand (RemoteEvent)
+│           ├── 📡 AdminDataUpdate (RemoteEvent)
+│           └── 📡 EventLogUpdate (RemoteEvent)
 │
 └── 📂 StarterPlayer
     └── StarterPlayerScripts
@@ -72,14 +96,10 @@ Roblox Studio'da oluşturacağınız yapı:
 ### 📡 RemoteEvent
 - **Ne İşe Yarar:** Server ve Client arası iletişim
 - **Nasıl Çalışır:** `:FireServer()` ve `:FireClient()` ile mesaj gönderme
-- **Örnek:** AdminDataRemote, EventLogRemote
+- **Örnek:** AdminCommand, AdminDataUpdate, EventLogUpdate
 - **Nerede Kullanılır:** ReplicatedStorage/Remotes içinde
 
-### 📞 RemoteFunction
-- **Ne İşe Yarar:** Server ve Client arası iletişim (cevap beklenir)
-- **Nasıl Çalışır:** `:InvokeServer()` ile çağrı yapma ve sonuç alma
-- **Örnek:** AdminCommandRemote
-- **Nerede Kullanılır:** ReplicatedStorage/Remotes içinde
+**⚠️ ÖNEMLİ:** Bu projede **sadece RemoteEvent** kullanılıyor, RemoteFunction kullanılmıyor!
 
 ### 📁 Folder
 - **Ne İşe Yarar:** Diğer nesneleri organize etmek
@@ -163,30 +183,35 @@ Roblox Studio'da oluşturacağınız yapı:
 
 ---
 
-### ADIM 9: AdminDataRemote Oluştur
-- 🎯 **TİPİ:** RemoteEvent (dikkat!)
-- 📍 **YER:** ReplicatedStorage/Remotes/Administration/ içinde
-- ➕ **NASIL:** Administration klasörüne sağ tıkla → Insert Object → RemoteEvent
-- 📝 **İSİM:** "AdminDataRemote"
-- 📄 **KOD:** Kod yok, sadece obje oluştur
-
----
-
-### ADIM 10: AdminCommandRemote Oluştur
-- 🎯 **TİPİ:** RemoteFunction (RemoteEvent değil!)
-- 📍 **YER:** ReplicatedStorage/Remotes/Administration/ içinde
-- ➕ **NASIL:** Administration klasörüne sağ tıkla → Insert Object → RemoteFunction
-- 📝 **İSİM:** "AdminCommandRemote"
-- 📄 **KOD:** Kod yok, sadece obje oluştur
-
----
-
-### ADIM 11: EventLogRemote Oluştur
+### ADIM 9: AdminCommand Remote Oluştur
 - 🎯 **TİPİ:** RemoteEvent
 - 📍 **YER:** ReplicatedStorage/Remotes/Administration/ içinde
 - ➕ **NASIL:** Administration klasörüne sağ tıkla → Insert Object → RemoteEvent
-- 📝 **İSİM:** "EventLogRemote"
+- 📝 **İSİM:** "AdminCommand" (tam olarak bu isim!)
 - 📄 **KOD:** Kod yok, sadece obje oluştur
+- ℹ️ **NE İŞE YARAR:** İstemciden sunucuya admin komutları gönderir
+
+---
+
+### ADIM 10: AdminDataUpdate Remote Oluştur
+- 🎯 **TİPİ:** RemoteEvent
+- 📍 **YER:** ReplicatedStorage/Remotes/Administration/ içinde
+- ➕ **NASIL:** Administration klasörüne sağ tıkla → Insert Object → RemoteEvent
+- 📝 **İSİM:** "AdminDataUpdate" (tam olarak bu isim!)
+- 📄 **KOD:** Kod yok, sadece obje oluştur
+- ℹ️ **NE İŞE YARAR:** Sunucudan istemciye admin data/durum güncellemeleri gönderir
+
+---
+
+### ADIM 11: EventLogUpdate Remote Oluştur
+- 🎯 **TİPİ:** RemoteEvent
+- 📍 **YER:** ReplicatedStorage/Remotes/Administration/ içinde
+- ➕ **NASIL:** Administration klasörüne sağ tıkla → Insert Object → RemoteEvent
+- 📝 **İSİM:** "EventLogUpdate" (tam olarak bu isim!)
+- 📄 **KOD:** Kod yok, sadece obje oluştur
+- ℹ️ **NE İŞE YARAR:** Sunucudan istemciye event log (olay kayıtları) gönderir
+
+⚠️ **ÖNEMLİ:** Tüm remote'lar **RemoteEvent** tipi! RemoteFunction KULLANILMIYOR!
 
 ---
 
@@ -241,10 +266,12 @@ Tamamladıkça işaretle:
 ### LocalScript'ler:
 - [ ] Administration/AdminClient (LocalScript)
 
-### Remote'lar:
-- [ ] Remotes/Administration/AdminDataRemote (RemoteEvent)
-- [ ] Remotes/Administration/AdminCommandRemote (RemoteFunction)
-- [ ] Remotes/Administration/EventLogRemote (RemoteEvent)
+### Remote'lar (Sadece 3 RemoteEvent!):
+- [ ] Remotes/Administration/AdminCommand (RemoteEvent)
+- [ ] Remotes/Administration/AdminDataUpdate (RemoteEvent)
+- [ ] Remotes/Administration/EventLogUpdate (RemoteEvent)
+
+⚠️ **ÖNEML:** Tüm remote'lar RemoteEvent tipi! RemoteFunction KULLANILMIYOR!
 
 ---
 
