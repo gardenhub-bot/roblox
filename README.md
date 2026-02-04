@@ -4477,7 +4477,7 @@ local EventTypes = {
 }
 
 -- [[ ADMIN CHECK ]] --
-AdminEvent.OnServerInvoke = function(player, action)
+AdminEvent.OnServerInvoke = function(player, action, data)
 	if action == "CheckAdmin" then
 		if Admins[player.Name] then
 			return true
@@ -4489,8 +4489,8 @@ AdminEvent.OnServerInvoke = function(player, action)
 			return {success = false, message = "Not authorized"}
 		end
 		
-		local eventType = action[2]
-		local duration = action[3] or 3600 -- Default 1 hour
+		local eventType = data[1]
+		local duration = data[2] or 3600 -- Default 1 hour
 		
 		if CurrentEvent.Active then
 			return {success = false, message = "Event already active"}
@@ -4596,7 +4596,7 @@ AdminEvent.OnServerInvoke = function(player, action)
 			return {success = false, message = "Not authorized"}
 		end
 		
-		local message = action[2]
+		local message = data[1]
 		
 		-- Notify all players
 		for _, plr in pairs(Players:GetPlayers()) do
