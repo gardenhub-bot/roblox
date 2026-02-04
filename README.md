@@ -4350,6 +4350,147 @@ StarFolder.ChildAdded:Connect(setupMachine)
 
 ----------------------------------
 
+AdminManager :
+
+-- ServerScriptService/Systems/AdminManager.lua
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local MessagingService = game:GetService("MessagingService")
+
+local DataKeyManager = require(ServerScriptService:WaitForChild("Systems"):WaitForChild("DataKeyManager"))
+local DataStoreService = game:GetService("DataStoreService")
+local MyDataStore = DataStoreService:GetDataStore(DataKeyManager.MAIN_KEY)
+local EventDataStore = DataStoreService:GetDataStore("GlobalEventData_V3")
+
+local Admins = {
+	["ChrolloLucifer"] = true,
+	["CavusAlah"] = true,
+}
+
+local Remotes = ReplicatedStorage:FindFirstChild("Remotes") or Instance.new("Folder", ReplicatedStorage)
+Remotes.Name = "Remotes"
+
+local AdminEvent = Remotes:FindFirstChild("AdminEvent") or Instance.new("RemoteEvent", Remotes)
+AdminEvent.Name = "AdminEvent"
+
+local EventNotification = Remotes:FindFirstChild("EventNotification") or Instance.new("RemoteEvent", Remotes)
+EventNotification.Name = "EventNotification"
+
+local EventVFXTrigger = Remotes:FindFirstChild("EventVFXTrigger") or Instance.new("RemoteEvent", Remotes)
+EventVFXTrigger.Name = "EventVFXTrigger"
+
+local DrinkPotionEvent = Remotes:FindFirstChild("DrinkPotionEvent") 
+if not DrinkPotionEvent then
+	DrinkPotionEvent = Instance.new("RemoteEvent", Remotes)
+	DrinkPotionEvent.Name = "DrinkPotionEvent"
+end
+
+local Modules = ReplicatedStorage:WaitForChild("Modules")
+local GameConfig = require(Modules:WaitForChild("GameConfig"))
+
+local POTION_TYPES = {"IQ", "Damage", "Coins", "Essence", "Aura", "Luck", "Speed"}
+local POTION_SIZES = {"Small", "Medium", "Big"}
+
+-- ADMIN CHECK
+AdminEvent.OnServerInvoke = function(player)
+	return Admins[player.Name] == true
+end
+
+-- EVENT SYSTEM
+local ActiveEvent = nil
+local EventConfig = {
+	["2xIQ"] = {Name = "2x IQ Boost", Duration = 1800, AttributeName = "EventIQBonus", Multiplier = 1.5, Icon = "🧠", Color = Color3.fromRGB(100, 150, 255)},
+	["2xCoins"] = {Name = "2x Coins Boost", Duration = 1800, AttributeName = "EventCoinsBonus", Multiplier = 1.5, Icon = "💰", Color = Color3.fromRGB(255, 215, 0)},
+	["LuckyHour"] = {Name = "Lucky Hour", Duration = 3600, AttributeName = "EventLuckBonus", Additive = 0.1, Icon = "🍀", Color = Color3.fromRGB(0, 255, 150)},
+	["SpeedFrenzy"] = {Name = "Speed Frenzy", Duration = 900, AttributeName = "EventSpeedBonus", Multiplier = 1.5, Icon = "⚡", Color = Color3.fromRGB(0, 255, 255)},
+	["GoldenRush"] = {Name = "Golden Rush", Duration = 600, AttributeName = "EventCoinsBonus", Multiplier = 1.5, Icon = "💸", Color = Color3.fromRGB(255, 200, 50)},
+	["RainbowStars"] = {Name = "Rainbow Stars", Duration = 1800, AttributeName = "EventAllBonus", Multiplier = 1.25, Icon = "🌈", Color = Color3.fromRGB(255, 100, 255)},
+	["EssenceRain"] = {Name = "Essence Rain", Duration = 600, AttributeName = "EventEssenceBonus", Multiplier = 1.5, Icon = "✨", Color = Color3.fromRGB(180, 100, 255)}
+}
+
+local function GetGlobalEvent() local success, data = pcall(function() return EventDataStore:GetAsync("CurrentEvent") end); return success and data or nil end
+local function SetGlobalEvent(eventType, startTime, duration) pcall(function() EventDataStore:SetAsync("CurrentEvent", {EventType = eventType, StartTime = startTime, Duration = duration}) end) end
+local function ClearGlobalEvent() pcall(function() EventDataStore:RemoveAsync("CurrentEvent") end) end
+
+local function ApplyEventToPlayer(player, eventType)
+	local config = EventConfig[eventType]; if not config then return end
+	if config.Multiplier then player:SetAttribute(config.AttributeName, config.Multiplier)
+	elseif config.Additive then local hidden = player:FindFirstChild("HiddenStats"); if hidden and hidden:FindFirstChild("LuckMultiplier") then hidden.LuckMultiplier.Value = hidden.LuckMultiplier.Value + config.Additive end end
+	if eventType == "SpeedFrenzy" then GameConfig.UpdateWalkSpeed(player) end
+end
+
+local function RemoveEventFromPlayer(player, eventType)
+	local config = EventConfig[eventType]; if not config then return end
+	if config.Multiplier then player:SetAttribute(config.AttributeName, nil)
+	elseif config.Additive then local hidden = player:FindFirstChild("HiddenStats"); if hidden and hidden:FindFirstChild("LuckMultiplier") then hidden.LuckMultiplier.Value = math.max(1.0, hidden.LuckMultiplier.Value - config.Additive) end end
+	if eventType == "SpeedFrenzy" then GameConfig.UpdateWalkSpeed(player) end
+end
+
+local function StartEvent(eventType)
+	if ActiveEvent then StopEvent(ActiveEvent.EventType, true) end
+	local config = EventConfig[eventType]; if not config then return end
+	local startTime = tick()
+	SetGlobalEvent(eventType, startTime, config.Duration)
+	for _, player in pairs(Players:GetPlayers()) do ApplyEventToPlayer(player, eventType) end
+	EventNotification:FireAllClients("Start", {EventType = eventType, Name = config.Name, Duration = config.Duration, Icon = config.Icon, Color = config.Color})
+	EventVFXTrigger:FireAllClients("Start", eventType)
+	pcall(function() MessagingService:PublishAsync("GlobalEventStart", {EventType = eventType, StartTime = startTime, Duration = config.Duration}) end)
+	ActiveEvent = {EventType = eventType, StartTime = startTime, Duration = config.Duration, Config = config}
+	task.spawn(function() task.wait(config.Duration); StopEvent(eventType) end)
+end
+
+function StopEvent(eventType, silent)
+	if not ActiveEvent or ActiveEvent.EventType ~= eventType then return end
+	for _, player in pairs(Players:GetPlayers()) do RemoveEventFromPlayer(player, eventType) end
+	if not silent then EventNotification:FireAllClients("End", {EventType = eventType, Name = ActiveEvent.Config.Name}) end
+	EventVFXTrigger:FireAllClients("Stop", eventType)
+	ClearGlobalEvent()
+	pcall(function() MessagingService:PublishAsync("GlobalEventStop", {EventType = eventType}) end)
+	ActiveEvent = nil
+end
+
+pcall(function()
+	MessagingService:SubscribeAsync("GlobalEventStart", function(message) local data = message.Data; local remaining = data.Duration - (tick() - data.StartTime); if remaining > 0 then local config = EventConfig[data.EventType]; if config then ActiveEvent = {EventType = data.EventType, StartTime = data.StartTime, Duration = data.Duration, Config = config}; for _, player in pairs(Players:GetPlayers()) do ApplyEventToPlayer(player, data.EventType) end; EventNotification:FireAllClients("Start", {EventType = data.EventType, Name = config.Name, Duration = remaining, Icon = config.Icon, Color = config.Color}); task.spawn(function() task.wait(remaining); StopEvent(data.EventType) end) end end end)
+	MessagingService:SubscribeAsync("GlobalEventStop", function(message) if ActiveEvent and ActiveEvent.EventType == message.Data.EventType then StopEvent(message.Data.EventType, true) end end)
+	MessagingService:SubscribeAsync("GlobalAnnouncement", function(message) EventNotification:FireAllClients("Announcement", {Message = message.Data.Message, AdminName = message.Data.AdminName}) end)
+end)
+
+Players.PlayerAdded:Connect(function(player)
+	task.wait(2)
+	local globalEvent = GetGlobalEvent()
+	if globalEvent then local remaining = globalEvent.Duration - (tick() - globalEvent.StartTime); if remaining > 0 then ApplyEventToPlayer(player, globalEvent.EventType); local config = EventConfig[globalEvent.EventType]; if config then EventNotification:FireClient(player, "Start", {EventType = globalEvent.EventType, Name = config.Name, Duration = remaining, Icon = config.Icon, Color = config.Color}) end end end
+end)
+
+local function ResetPlayerData(playerId) pcall(function() MyDataStore:RemoveAsync("Player_" .. playerId) end) end
+
+local function GivePotionToPlayer(player, potionName, amount)
+	if not player or not player.Parent then return false end
+	local potionInv = player:FindFirstChild("PotionInventory") or Instance.new("Folder", player); potionInv.Name = "PotionInventory"
+	local potionVal = potionInv:FindFirstChild(potionName) or Instance.new("IntValue", potionInv); potionVal.Name = potionName
+	potionVal.Value = potionVal.Value + (amount or 1); return true
+end
+
+AdminEvent.OnServerEvent:Connect(function(admin, category, action, data)
+	if not Admins[admin.Name] then return end
+	if category == "Event" then if action == "Stop" then if ActiveEvent then StopEvent(ActiveEvent.EventType) end else StartEvent(action) end; return end
+	if category == "Announcement" then EventNotification:FireAllClients("Announcement", {Message = data.Message, AdminName = admin.Name}); pcall(function() MessagingService:PublishAsync("GlobalAnnouncement", {Message = data.Message, AdminName = admin.Name}) end); return end
+	local targetPlayer, targetId = nil, nil
+	if data.Target and data.Target ~= "" then for _, p in pairs(Players:GetPlayers()) do if string.lower(p.Name):sub(1, #data.Target) == string.lower(data.Target) then targetPlayer = p; targetId = p.UserId; break end end; if not targetPlayer and tonumber(data.Target) then targetId = tonumber(data.Target) end else targetPlayer = admin; targetId = admin.UserId end
+	if not targetId then return end
+	if action == "GiveRotSkill" then local mapID, skillIndex = tonumber(data.MapID), tonumber(data.SkillIndex); if not mapID or not skillIndex then return end; if targetPlayer then local ls = targetPlayer:FindFirstChild("leaderstats"); if ls then local obj = ls:FindFirstChild("EquippedSkill" .. (mapID == 1 and "" or tostring(mapID))); if obj then obj.Value = skillIndex end end else pcall(function() MyDataStore:UpdateAsync("Player_" .. targetId, function(old) old = old or {}; old["EquippedSkill" .. (mapID == 1 and "" or tostring(mapID))] = skillIndex; return old end) end) end
+	elseif action == "GiveRotSkillToken" then local mapID, amount = tonumber(data.MapID), tonumber(data.Amount) or 1; if not mapID then return end; local mapConfig = GameConfig.MapRotSkills[mapID]; if not mapConfig then return end; local tokenName = mapConfig.TokenName; if targetPlayer then local ls = targetPlayer:FindFirstChild("leaderstats"); if ls then local obj = ls:FindFirstChild(tokenName) or Instance.new("IntValue", ls); obj.Name = tokenName; obj.Value = obj.Value + amount end else pcall(function() MyDataStore:UpdateAsync("Player_" .. targetId, function(old) old = old or {}; old[tokenName] = (old[tokenName] or 0) + amount; return old end) end) end
+	elseif action == "AddStat" then local stat, amount = data.Stat, tonumber(data.Amount) or 1; if targetPlayer then local ps, ls, hs = targetPlayer:FindFirstChild("PlayerStats"), targetPlayer:FindFirstChild("leaderstats"), targetPlayer:FindFirstChild("HiddenStats"); if stat == "Aura" and hs then local a = hs:FindFirstChild("Aura") or Instance.new("IntValue", hs); a.Name = "Aura"; a.Value = a.Value + amount elseif stat == "MaxHatch" and ps then local m = ps:FindFirstChild("MaxHatch") or Instance.new("IntValue", ps); m.Name = "MaxHatch"; m.Value = m.Value + amount elseif stat == "Luck" and hs then local l = hs:FindFirstChild("LuckLvl") or Instance.new("IntValue", hs); l.Name = "LuckLvl"; l.Value = l.Value + amount; local lm = hs:FindFirstChild("LuckMultiplier") or Instance.new("NumberValue", hs); lm.Name = "LuckMultiplier"; lm.Value = 1.0 + (l.Value * 0.1) elseif ls and ls:FindFirstChild(stat) then ls[stat].Value = ls[stat].Value + amount end else pcall(function() MyDataStore:UpdateAsync("Player_" .. targetId, function(old) old = old or {}; if stat == "Luck" then old["LuckLvl"] = (old["LuckLvl"] or 0) + amount; old["LuckMultiplier"] = 1.0 + (old["LuckLvl"] * 0.1) else old[stat] = (old[stat] or 0) + amount end; return old end) end) end
+	elseif action == "GiveSpin" then local amount = tonumber(data.Amount) or 1; if targetPlayer then local h = targetPlayer:FindFirstChild("HiddenStats"); if h then local w = h:FindFirstChild("WheelSpin") or Instance.new("IntValue", h); w.Name = "WheelSpin"; w.Value = w.Value + amount end else pcall(function() MyDataStore:UpdateAsync("Player_" .. targetId, function(old) old = old or {}; old["WheelSpin"] = (old["WheelSpin"] or 1) + amount; return old end) end) end
+	elseif action == "GivePotion" then local potionName, amount = data.Potion, tonumber(data.Amount) or 1; if not potionName then return end; local pType, size = string.match(potionName, "^(%w+)_(%w+)$"); if not pType then pType = potionName; size = "Small"; potionName = pType .. "_" .. size end; if not table.find(POTION_TYPES, pType) or not table.find(POTION_SIZES, size) then return end; if targetPlayer then GivePotionToPlayer(targetPlayer, potionName, amount) else pcall(function() MyDataStore:UpdateAsync("Player_" .. targetId, function(old) old = old or {}; if not old.Potions then old.Potions = {} end; old.Potions[potionName] = (old.Potions[potionName] or 0) + amount; return old end) end) end
+	elseif action == "ResetStats" then if not data.Confirm then return end; if targetPlayer then targetPlayer:Kick("Stats resetlendi.") end; ResetPlayerData(targetId) end
+end)
+
+print("✅ AdminManager: Loaded!")
+
+----------------------------------
+
 MapConfig :
 
 local MapConfig = {}
