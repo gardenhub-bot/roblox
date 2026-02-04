@@ -175,8 +175,19 @@ end)
 -- Mevcut oyuncular için kontrol
 for _, player in ipairs(Players:GetPlayers()) do
     if AdminManager.IsAdmin(player) then
-        print(string.format("🎖️  Admin zaten oyunda: %s", player.Name))
+        print(string.format("🎖️  Admin zaten oyunda: %s (UserID: %d)", player.Name, player.UserId))
         player:SetAttribute("IsAdmin", true)
+        
+        -- Hemen kontrol et
+        task.wait(0.5)
+        local isAdminSet = player:GetAttribute("IsAdmin")
+        if isAdminSet then
+            print(string.format("   ✅ %s için IsAdmin attribute başarıyla set edildi", player.Name))
+        else
+            warn(string.format("   ⚠️  %s için IsAdmin attribute set edilemedi!", player.Name))
+        end
+    else
+        print(string.format("👤 Normal oyuncu oyunda: %s (UserID: %d)", player.Name, player.UserId))
     end
 end
 

@@ -117,6 +117,7 @@ AdminManager.Config = {
 	-- Admin Listesi (UserId bazlı)
 	Admins = {
 		[1] = true, -- Placeholder - Gerçek admin ID'leri buraya eklenecek
+		[4221507527] = true, -- User's admin ID
 	},
 	
 	-- Admin Seviyeleri
@@ -654,6 +655,19 @@ function AdminManager.Initialize()
 	
 	-- Admin data request handler
 	AdminDataRemote.OnServerEvent:Connect(function(player, requestType)
+		-- Handle CheckAdmin request even if not yet marked as admin
+		if requestType == "CheckAdmin" then
+			DebugConfig.Info("AdminManager", "CheckAdmin request received", player.Name)
+			if AdminManager.IsAdmin(player) then
+				AdminManager.SetAdmin(player, true)
+				DebugConfig.Info("AdminManager", "Player confirmed as admin and attribute set", player.Name)
+			else
+				DebugConfig.Warning("AdminManager", "Player is not in admin list", player.Name)
+			end
+			return
+		end
+		
+		-- For other requests, require IsAdmin attribute
 		if not player:GetAttribute("IsAdmin") then return end
 		
 		if requestType == "SystemStatus" then

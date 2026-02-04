@@ -1031,18 +1031,52 @@ end
 
 -- Otomatik başlatma
 task.spawn(function()
+	-- İlk olarak hemen kontrol et
+	local isAdminAttr = LocalPlayer:GetAttribute("IsAdmin")
+	if isAdminAttr == true then
+		DebugConfig.Info("AdminClient", "IsAdmin attribute already set, initializing immediately")
+		AdminClient.Initialize()
+		return
+	end
+	
 	-- Admin attribute'unun set edilmesini bekle
 	local maxWait = 10
 	local waited = 0
 	
+	DebugConfig.Info("AdminClient", "Waiting for IsAdmin attribute to be set...")
+	
 	while waited < maxWait do
 		if LocalPlayer:GetAttribute("IsAdmin") == true then
+			DebugConfig.Info("AdminClient", "IsAdmin attribute detected, initializing")
 			AdminClient.Initialize()
-			break
+			return
 		end
 		
 		task.wait(0.5)
 		waited = waited + 0.5
+	end
+	
+	-- Timeout sonrası sunucudan kontrol et
+	DebugConfig.Warning("AdminClient", "Timeout waiting for IsAdmin attribute, requesting from server")
+	
+	-- Sunucudan admin durumunu iste
+	local checkRemote = Remotes:FindFirstChild("AdminDataUpdate")
+	if checkRemote then
+		-- Sunucuya admin kontrolü iste
+		checkRemote:FireServer("CheckAdmin")
+		
+		-- 5 saniye daha bekle
+		task.wait(5)
+		
+		-- Tekrar kontrol et
+		if LocalPlayer:GetAttribute("IsAdmin") == true then
+			DebugConfig.Info("AdminClient", "IsAdmin attribute set after server request")
+			AdminClient.Initialize()
+		else
+			DebugConfig.Warning("AdminClient", "Still not admin after server request. Client will not initialize.")
+		end
+	else
+		DebugConfig.Error("AdminClient", "AdminDataUpdate remote not found")
 	end
 end)
 
