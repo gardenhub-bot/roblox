@@ -14,10 +14,79 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local DebugConfig = require(Modules:WaitForChild("DebugConfig"))
 
 -- Security ve Systems modülleri
-local Security = ServerScriptService:WaitForChild("Security")
-local Systems = ServerScriptService:WaitForChild("Systems")
-local AntiCheatSystem = require(Security:WaitForChild("AntiCheatSystem"))
-local EventLogger = require(Systems:WaitForChild("EventLogger"))
+-- Not: Bu modüller opsiyoneldir, yoksa sistem yine de çalışır
+local AntiCheatSystem = nil
+local EventLogger = nil
+
+local Security = ServerScriptService:FindFirstChild("Security")
+if Security then
+	local AntiCheatModule = Security:FindFirstChild("AntiCheatSystem")
+	if AntiCheatModule then
+		local success, result = pcall(function()
+			return require(AntiCheatModule)
+		end)
+		if success then
+			AntiCheatSystem = result
+			DebugConfig.Info("AdminManager", "AntiCheatSystem loaded successfully")
+		else
+			DebugConfig.Warning("AdminManager", "Failed to load AntiCheatSystem: " .. tostring(result))
+		end
+	else
+		DebugConfig.Warning("AdminManager", "AntiCheatSystem module not found in Security folder")
+	end
+else
+	DebugConfig.Warning("AdminManager", "Security folder not found - AntiCheat features disabled")
+end
+
+local Systems = ServerScriptService:FindFirstChild("Systems")
+if Systems then
+	local EventLoggerModule = Systems:FindFirstChild("EventLogger")
+	if EventLoggerModule then
+		local success, result = pcall(function()
+			return require(EventLoggerModule)
+		end)
+		if success then
+			EventLogger = result
+			DebugConfig.Info("AdminManager", "EventLogger loaded successfully")
+		else
+			DebugConfig.Warning("AdminManager", "Failed to load EventLogger: " .. tostring(result))
+		end
+	else
+		DebugConfig.Warning("AdminManager", "EventLogger module not found in Systems folder")
+	end
+else
+	DebugConfig.Warning("AdminManager", "Systems folder not found - Event logging disabled")
+end
+
+-- =============================================================================
+-- [[ YARDIMCI FONKSİYONLAR - SAFE CALLS ]]
+-- =============================================================================
+
+-- AntiCheat metodlarını güvenli çağır
+local function SafeAntiCheatCall(methodName, ...)
+	if AntiCheatSystem and AntiCheatSystem[methodName] then
+		local success, result = pcall(AntiCheatSystem[methodName], ...)
+		if success then
+			return result
+		else
+			DebugConfig.Warning("AdminManager", "AntiCheat call failed: " .. methodName .. " - " .. tostring(result))
+			return nil
+		end
+	end
+	return nil -- AntiCheat yok, null döndür (güvenli varsayım)
+end
+
+-- EventLogger metodlarını güvenli çağır
+local function SafeEventLogCall(methodName, ...)
+	if EventLogger and EventLogger[methodName] then
+		local success, result = pcall(EventLogger[methodName], ...)
+		if not success then
+			DebugConfig.Warning("AdminManager", "EventLogger call failed: " .. methodName .. " - " .. tostring(result))
+		end
+		return result
+	end
+	return nil
+end
 
 -- Remotes
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -129,7 +198,7 @@ function AdminManager.SetAdmin(player, isAdmin)
 	
 	if isAdmin then
 		DebugConfig.Info("AdminManager", "Player marked as admin", player.Name)
-		EventLogger.LogAdminAction(player, "AdminGranted", player, {})
+		SafeEventLogCall("LogAdminAction", player, "AdminGranted", player, {})
 		
 		-- Admin'e mevcut sistem durumunu gönder
 		AdminManager.SendSystemStatus(player)
@@ -165,14 +234,14 @@ function AdminManager.GiveStat(admin, targetPlayer, statName, amount)
 		string.format("Stat given: %s +%s to %s", statName, tostring(amount), targetPlayer.Name), 
 		admin.Name)
 	
-	EventLogger.LogAdminAction(admin, "GiveStat", targetPlayer, {
+	SafeEventLogCall("LogAdminAction", admin, "GiveStat", targetPlayer, {
 		Stat = statName,
 		Amount = amount,
 		OldValue = oldValue,
 		NewValue = stat.Value,
 	})
 	
-	EventLogger.LogStatChange(targetPlayer, statName, oldValue, stat.Value)
+	SafeEventLogCall("LogStatChange", targetPlayer, statName, oldValue, stat.Value)
 	
 	return true, "Başarılı"
 end
@@ -200,13 +269,13 @@ function AdminManager.SetStat(admin, targetPlayer, statName, value)
 		string.format("Stat set: %s = %s for %s", statName, tostring(value), targetPlayer.Name), 
 		admin.Name)
 	
-	EventLogger.LogAdminAction(admin, "SetStat", targetPlayer, {
+	SafeEventLogCall("LogAdminAction", admin, "SetStat", targetPlayer, {
 		Stat = statName,
 		OldValue = oldValue,
 		NewValue = value,
 	})
 	
-	EventLogger.LogStatChange(targetPlayer, statName, oldValue, value)
+	SafeEventLogCall("LogStatChange", targetPlayer, statName, oldValue, value)
 	
 	return true, "Başarılı"
 end
@@ -224,7 +293,7 @@ function AdminManager.GivePotion(admin, targetPlayer, potionType, duration)
 	duration = duration or 300
 	
 	-- Anti-cheat kontrolü
-	if not AntiCheatSystem.ValidatePotionUse(targetPlayer, potionType, duration) then
+	if not SafeAntiCheatCall("ValidatePotionUse", targetPlayer, potionType, duration) then
 		return false, "İksir validasyonu başarısız"
 	end
 	
@@ -236,12 +305,12 @@ function AdminManager.GivePotion(admin, targetPlayer, potionType, duration)
 		string.format("Potion given: %s (%ds) to %s", potionType, duration, targetPlayer.Name), 
 		admin.Name)
 	
-	EventLogger.LogAdminAction(admin, "GivePotion", targetPlayer, {
+	SafeEventLogCall("LogAdminAction", admin, "GivePotion", targetPlayer, {
 		PotionType = potionType,
 		Duration = duration,
 	})
 	
-	EventLogger.LogPotionUse(targetPlayer, potionType, duration)
+	SafeEventLogCall("LogPotionUse", targetPlayer, potionType, duration)
 	
 	-- Süre sonunda kaldır
 	task.delay(duration, function()
@@ -270,7 +339,7 @@ function AdminManager.ClearPotions(admin, targetPlayer)
 	
 	DebugConfig.Info("AdminManager", "All potions cleared", admin.Name)
 	
-	EventLogger.LogAdminAction(admin, "ClearPotions", targetPlayer, {})
+	SafeEventLogCall("LogAdminAction", admin, "ClearPotions", targetPlayer, {})
 	
 	return true, "Başarılı"
 end
@@ -307,13 +376,13 @@ function AdminManager.GiveAura(admin, targetPlayer, amount)
 		string.format("Aura given: +%s to %s", tostring(amount), targetPlayer.Name), 
 		admin.Name)
 	
-	EventLogger.LogAdminAction(admin, "GiveAura", targetPlayer, {
+	SafeEventLogCall("LogAdminAction", admin, "GiveAura", targetPlayer, {
 		Amount = amount,
 		OldValue = oldValue,
 		NewValue = aura.Value,
 	})
 	
-	EventLogger.LogAuraGain(targetPlayer, amount, "AdminGrant")
+	SafeEventLogCall("LogAuraGain", targetPlayer, amount, "AdminGrant")
 	
 	return true, "Başarılı"
 end
@@ -338,7 +407,7 @@ function AdminManager.SetDebug(admin, systemName, enabled)
 		string.format("Debug setting changed: %s = %s", systemName, tostring(enabled)), 
 		admin.Name)
 	
-	EventLogger.LogAdminAction(admin, "SetDebug", nil, {
+	SafeEventLogCall("LogAdminAction", admin, "SetDebug", nil, {
 		System = systemName,
 		Enabled = enabled,
 	})
@@ -359,13 +428,15 @@ function AdminManager.ToggleAntiCheat(admin, enabled)
 		return false, "İzin reddedildi"
 	end
 	
-	AntiCheatSystem.Config.Enabled = enabled
+	if AntiCheatSystem then
+		AntiCheatSystem.Config.Enabled = enabled
+	end
 	
 	DebugConfig.Info("AdminManager", 
 		string.format("Anti-Cheat toggled: %s", tostring(enabled)), 
 		admin.Name)
 	
-	EventLogger.LogAdminAction(admin, "ToggleAntiCheat", nil, {
+	SafeEventLogCall("LogAdminAction", admin, "ToggleAntiCheat", nil, {
 		Enabled = enabled,
 	})
 	
@@ -385,12 +456,12 @@ function AdminManager.GetSystemStatus()
 			Systems = DebugConfig.Settings.DebugSystems,
 		},
 		AntiCheat = {
-			Enabled = AntiCheatSystem.Config.Enabled,
-			AutoKick = AntiCheatSystem.Config.AutoKickCheaters,
+			Enabled = AntiCheatSystem and AntiCheatSystem.Config.Enabled or false,
+			AutoKick = AntiCheatSystem and AntiCheatSystem.Config.AutoKickCheaters or false,
 		},
 		EventLogger = {
-			Enabled = EventLogger.Config.Enabled,
-			StoredEvents = #EventLogger.GetRecentEvents(1),
+			Enabled = EventLogger and EventLogger.Config.Enabled or false,
+			StoredEvents = EventLogger and #EventLogger.GetRecentEvents(1) or 0,
 		},
 		Server = {
 			Players = #Players:GetPlayers(),
@@ -523,13 +594,31 @@ function AdminManager.Initialize()
 	DebugConfig.Info("AdminManager", "Initializing Admin Manager...")
 	
 	-- Anti-Cheat başlat
-	if AdminManager.Config.AutoSystems.AntiCheat then
-		AntiCheatSystem.Initialize()
+	if AdminManager.Config.AutoSystems.AntiCheat and AntiCheatSystem then
+		local success, err = pcall(function()
+			AntiCheatSystem.Initialize()
+		end)
+		if success then
+			DebugConfig.Info("AdminManager", "AntiCheat system initialized")
+		else
+			DebugConfig.Error("AdminManager", "Failed to initialize AntiCheat: " .. tostring(err))
+		end
+	elseif AdminManager.Config.AutoSystems.AntiCheat then
+		DebugConfig.Warning("AdminManager", "AntiCheat enabled but module not loaded")
 	end
 	
 	-- Event Logger başlat
-	if AdminManager.Config.AutoSystems.EventLogging then
-		EventLogger.Initialize()
+	if AdminManager.Config.AutoSystems.EventLogging and EventLogger then
+		local success, err = pcall(function()
+			EventLogger.Initialize()
+		end)
+		if success then
+			DebugConfig.Info("AdminManager", "Event Logger initialized")
+		else
+			DebugConfig.Error("AdminManager", "Failed to initialize EventLogger: " .. tostring(err))
+		end
+	elseif AdminManager.Config.AutoSystems.EventLogging then
+		DebugConfig.Warning("AdminManager", "EventLogging enabled but module not loaded")
 	end
 	
 	-- Mevcut oyuncular için admin kontrolü
