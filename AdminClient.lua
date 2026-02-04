@@ -213,6 +213,81 @@ local function CreateScreenGui()
 	-- İlk tab'ı göster
 	AdminClient.SwitchTab("Dashboard")
 	
+	-- Floating Toggle Button (Always visible - outside MainFrame)
+	local toggleButton = Instance.new("TextButton")
+	toggleButton.Name = "AdminToggleButton"
+	toggleButton.Size = UDim2.new(0, 60, 0, 60)
+	toggleButton.Position = UDim2.new(1, -80, 1, -80)
+	toggleButton.AnchorPoint = Vector2.new(0, 0)
+	toggleButton.BackgroundColor3 = AdminClient.Config.Theme.Accent
+	toggleButton.Text = "🔧"
+	toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	toggleButton.TextSize = 32
+	toggleButton.Font = Enum.Font.GothamBold
+	toggleButton.ZIndex = 1000
+	toggleButton.Parent = ScreenGui
+	
+	local toggleCorner = Instance.new("UICorner")
+	toggleCorner.CornerRadius = UDim.new(0.5, 0) -- Circular
+	toggleCorner.Parent = toggleButton
+	
+	-- Button shadow
+	local buttonShadow = Instance.new("ImageLabel")
+	buttonShadow.Name = "Shadow"
+	buttonShadow.Size = UDim2.new(1, 20, 1, 20)
+	buttonShadow.Position = UDim2.new(0, -10, 0, -10)
+	buttonShadow.BackgroundTransparency = 1
+	buttonShadow.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+	buttonShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+	buttonShadow.ImageTransparency = 0.7
+	buttonShadow.ScaleType = Enum.ScaleType.Slice
+	buttonShadow.SliceCenter = Rect.new(20, 20, 80, 80)
+	buttonShadow.ZIndex = 999
+	buttonShadow.Parent = toggleButton
+	
+	-- Button click handler
+	toggleButton.MouseButton1Click:Connect(function()
+		AdminClient.ToggleUI()
+		
+		-- Button animation
+		local originalSize = toggleButton.Size
+		toggleButton:TweenSize(
+			UDim2.new(0, 55, 0, 55),
+			Enum.EasingDirection.Out,
+			Enum.EasingStyle.Back,
+			0.1,
+			true,
+			function()
+				toggleButton:TweenSize(
+					originalSize,
+					Enum.EasingDirection.Out,
+					Enum.EasingStyle.Back,
+					0.1,
+					true
+				)
+			end
+		)
+	end)
+	
+	-- Hover effects
+	toggleButton.MouseEnter:Connect(function()
+		local tween = TweenService:Create(
+			toggleButton,
+			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{BackgroundColor3 = Color3.fromRGB(120, 170, 255)}
+		)
+		tween:Play()
+	end)
+	
+	toggleButton.MouseLeave:Connect(function()
+		local tween = TweenService:Create(
+			toggleButton,
+			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{BackgroundColor3 = AdminClient.Config.Theme.Accent}
+		)
+		tween:Play()
+	end)
+	
 	DebugConfig.Info("AdminClient", "UI Created Successfully")
 end
 

@@ -68,6 +68,7 @@ AdminManager.Initialize()
 
 ### Admin Panelini Aç/Kapat
 - **F2** tuşu ile panel açılır/kapanır
+- **🔧 Butonu** (sağ alt köşe) ile de açılır/kapanır - YENİ! 🎉
 
 ### Panel Sekmeleri
 

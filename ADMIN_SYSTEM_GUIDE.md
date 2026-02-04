@@ -214,6 +214,7 @@ EventLogger.LogRebirth(player, 5)
 - **Komut Paneli**: Kullanımı kolay komut arayüzü
 - **Debug Paneli**: Debug ayarlarını görsel olarak kontrol
 - **Klavye Kısayolu**: F2 ile paneli açma/kapama
+- **Toggle Button**: Sağ alt köşede floating buton (yeni!)
 - **Bildirimler**: İşlem sonuçları için otomatik bildirimler
 
 **Özellikler:**
@@ -230,7 +231,7 @@ EventLogger.LogRebirth(player, 5)
 ### Admin Panel'i Açma
 
 1. Oyuna admin hesabıyla girin
-2. **F2** tuşuna basın
+2. **F2** tuşuna basın VEYA sağ alt köşedeki **🔧 butonuna** tıklayın
 3. Admin paneli açılacak
 
 ### Dashboard

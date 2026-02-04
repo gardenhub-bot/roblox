@@ -11,11 +11,13 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 -- Modüller
 local Modules = ReplicatedStorage:WaitForChild("Modules")
-local DebugConfig = require(script.Parent.Parent.ReplicatedStorage.Modules.DebugConfig)
+local DebugConfig = require(Modules:WaitForChild("DebugConfig"))
 
 -- Security ve Systems modülleri
-local AntiCheatSystem = require(script.Parent.Parent.ServerScriptService.Security.AntiCheatSystem)
-local EventLogger = require(script.Parent.Parent.ServerScriptService.Systems.EventLogger)
+local Security = ServerScriptService:WaitForChild("Security")
+local Systems = ServerScriptService:WaitForChild("Systems")
+local AntiCheatSystem = require(Security:WaitForChild("AntiCheatSystem"))
+local EventLogger = require(Systems:WaitForChild("EventLogger"))
 
 -- Remotes
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")

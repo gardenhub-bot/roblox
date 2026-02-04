@@ -10,7 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Modüller
 local Modules = ReplicatedStorage:WaitForChild("Modules")
-local DebugConfig = require(script.Parent.Parent.ReplicatedStorage.Modules.DebugConfig)
+local DebugConfig = require(Modules:WaitForChild("DebugConfig"))
 
 -- =============================================================================
 -- [[ ANTİ-CHEAT AYARLARI ]]

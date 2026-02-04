@@ -11,7 +11,7 @@ local HttpService = game:GetService("HttpService")
 
 -- Modüller
 local Modules = ReplicatedStorage:WaitForChild("Modules")
-local DebugConfig = require(script.Parent.Parent.ReplicatedStorage.Modules.DebugConfig)
+local DebugConfig = require(Modules:WaitForChild("DebugConfig"))
 
 -- Remotes
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
