@@ -4,14 +4,19 @@
 
 Her şey bu 3 dosyada:
 
-### 1️⃣ DUZELTMELER.md
-**En önemli dosya!** Ne yapacağını buradan öğren.
+### 1️⃣ KOLAY_KURULUM.md ⭐ EN ÖNEMLİ!
+**İlk kurulum için tam rehber!** 
+- Hangi scriptleri oluşturacağın
+- Türleri (ModuleScript, Script, RemoteEvent vs)
+- 14 adımlık detaylı rehber
+- Her adımın açıklaması
 
-### 2️⃣ HANGI_DOSYALAR.md
-Hangi dosyaları değiştireceğini buradan öğren.
+### 2️⃣ DUZELTMELER.md
+**Güncellemeler için!**
+Ne değişti, nasıl güncelleyeceğin.
 
 ### 3️⃣ OYUN_ICI_YAPILANMA.md
-**Roblox Studio'da nasıl organize edilir?** Tam rehber burada!
+**Roblox Studio'da nasıl organize edilir?** Görsel rehber burada!
 
 ---
 
@@ -19,82 +24,63 @@ Hangi dosyaları değiştireceğini buradan öğren.
 
 ```bash
 1. AdminPanelSystem/ klasörünü aç
-2. DUZELTMELER.md dosyasını aç
-3. Oradaki adımları takip et
-4. Bitti! 🎉
+2. KOLAY_KURULUM.md dosyasını aç ⭐
+3. 14 adımı takip et
+4. Admin ID'ni ekle
+5. Test et
+6. Bitti! 🎉
 ```
 
 ---
 
-## 📁 DOSYA KONUMLARI
+## 📁 ROBLOX STUDIO'DA OLUŞTURMA
 
-### Güncellenecek Dosya:
-```
-AdminPanelSystem/Client/AdminClient.lua  ⭐
-```
-
-### Diğer Dosyalar (Değiştirme!):
-```
-AdminPanelSystem/Server/AdminManager.lua
-AdminPanelSystem/Server/AntiCheatSystem.lua
-AdminPanelSystem/Server/EventLogger.lua
-AdminPanelSystem/Shared/DebugConfig.lua
-```
-
----
-
-## ✅ NE DEĞİŞTİ?
-
-### v2.1 Güncellemesi (04 Şubat 2026)
-
-1. ✅ Dosyalar düzenli klasörlere taşındı
-2. ✅ Sadece 1 dosya güncelleme gerekiyor (AdminClient.lua)
-3. ✅ Admin ID eklendi (4221507527)
-4. ✅ Buton görünürlüğü düzeltildi
-5. ✅ Basit ve anlaşılır dökümanlar
-
----
-
-## 🚀 ROBLOX STUDIO'DA OLUŞTURMA
-
-**Detaylı rehber:** `OYUN_ICI_YAPILANMA.md` dosyasına bak!
+**Detaylı rehber:** `KOLAY_KURULUM.md` dosyasına bak! ⭐
 
 ### Hızlı Özet:
 
-**ServerScriptService:**
-- Administration/ → AdminManager (ModuleScript)
-- Security/ → AntiCheatSystem (ModuleScript)
-- Systems/ → EventLogger (ModuleScript)
+**ServerScriptService/Administration:**
+- AdminManager (ModuleScript)
+- AntiCheatSystem (ModuleScript)
+- EventLogger (ModuleScript)
 - MainInit (Script)
 
-**StarterPlayer/StarterPlayerScripts:**
+**StarterPlayerScripts/Administration:**
 - AdminClient (LocalScript)
 
 **ReplicatedStorage:**
 - Modules/ → DebugConfig (ModuleScript)
-- Remotes/ → 3 RemoteEvent/Function
+- Remotes/Administration/ → 3 RemoteEvent/Function
 
 ---
 
 ## ❓ SIKÇA SORULANLAR
 
-**S: Kaç dosya güncelleyeceğim?**  
-C: Sadece 1 dosya - AdminClient.lua
+**S: İlk kez kuruyorum, nereden başlayacağım?**  
+C: KOLAY_KURULUM.md dosyasını aç! ⭐
 
-**S: Diğer dosyalar?**  
-C: Değiştirme, zaten güncel!
+**S: Hangi scriptleri oluşturacağım?**  
+C: KOLAY_KURULUM.md'de 14 adımda hepsi var!
+
+**S: Türleri (ModuleScript, Script vs) nasıl bileceğim?**  
+C: KOLAY_KURULUM.md'de her adımda tip belirtilmiş!
 
 **S: Hangi dökümanı okuyayım?**  
-C: DUZELTMELER.md - hepsi orada!
-
-**S: Test scripti gerekli mi?**  
-C: Hayır, opsiyonel.
+C: Yeni kurulum → KOLAY_KURULUM.md
+   Güncelleme → DUZELTMELER.md
 
 ---
 
 ## 🎯 SONUÇ
 
-### Tek Yapman Gereken:
+### İlk Kurulum İçin:
+
+1. `KOLAY_KURULUM.md` aç ⭐
+2. 14 adımı takip et
+3. Admin ID'ni ekle
+4. Test et
+
+### Güncelleme İçin:
 
 1. `DUZELTMELER.md` aç
 2. Oradaki adımları takip et

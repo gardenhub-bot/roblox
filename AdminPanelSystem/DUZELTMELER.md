@@ -16,7 +16,8 @@
 2. **Roblox Studio'daki Klasörler** (ServerScriptService, ReplicatedStorage, vb.)
    - **Bu önemli olan!**
    - Oyunda çalışması için gerekli
-   - **Detaylı yapı için:** `OYUN_ICI_YAPILANMA.md` dosyasına bakın!
+   - **Detaylı kurulum için:** `KOLAY_KURULUM.md` dosyasına bakın!
+   - **Yapı görseli için:** `OYUN_ICI_YAPILANMA.md` dosyasına bakın!
 
 ---
 
@@ -41,16 +42,21 @@
 
 ## 🚀 NASIL KULLANACAKSIN?
 
-### Adım 1: Roblox Studio'da Klasörleri Oluştur
+**Adım 1: Roblox Studio'da Klasörleri Oluştur**
 
-**Tam detaylı rehber için:** `OYUN_ICI_YAPILANMA.md` dosyasına bak!
+**TAM DETAYLI KURULUM REHBERİ İÇİN:** 👉 `KOLAY_KURULUM.md` 👈
+
+Bu dosyada:
+- Hangi scriptleri oluşturacağın
+- Türlerinin ne olduğu (ModuleScript, Script, RemoteEvent vs)
+- Adım adım tam rehber
+- Her şeyin açıklaması var!
 
 **Hızlı Özet:**
-1. ServerScriptService'de klasörler oluştur (Administration, Security, Systems)
-2. Her klasöre ModuleScript'leri ekle
-3. ReplicatedStorage'a Modules ve Remotes klasörleri ekle
-4. StarterPlayerScripts'e AdminClient'i ekle (LocalScript olarak)
-5. MainInitScript'i ServerScriptService'e ekle (Script olarak)
+1. ServerScriptService'de Administration klasörü oluştur
+2. Remotes klasöründe Administration klasörü oluştur
+3. Her klasöre gerekli scriptleri ekle
+4. MainInitScript'i çalıştır
 
 ### Adım 2: Admin ID'ni Ekle
 
