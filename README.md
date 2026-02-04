@@ -4462,7 +4462,8 @@ local EventDataStore = DataStoreService:GetDataStore("GlobalEvents")
 local CurrentEvent = {
 	Type = nil,
 	Active = false,
-	StartTime = 0
+	StartTime = 0,
+	EventId = nil
 }
 
 -- [[ EVENT TYPES ]] --
@@ -4492,8 +4493,15 @@ AdminEvent.OnServerInvoke = function(player, action, data)
 		local eventType = data[1]
 		local duration = data[2] or 3600 -- Default 1 hour
 		
+		-- Validate duration (min 60 seconds, max 24 hours)
+		if duration < 60 then
+			duration = 60
+		elseif duration > 86400 then
+			duration = 86400
+		end
+		
 		if CurrentEvent.Active then
-			return {success = false, message = "Event already active"}
+			return {success = false, message = "Event already active: " .. CurrentEvent.Type}
 		end
 		
 		-- Start event
@@ -4502,7 +4510,7 @@ AdminEvent.OnServerInvoke = function(player, action, data)
 		CurrentEvent.StartTime = os.time()
 		
 		-- Save to DataStore
-		pcall(function()
+		local dsSuccess, dsError = pcall(function()
 			EventDataStore:SetAsync("CurrentEvent", {
 				Type = eventType,
 				Active = true,
@@ -4510,6 +4518,9 @@ AdminEvent.OnServerInvoke = function(player, action, data)
 				Duration = duration
 			})
 		end)
+		if not dsSuccess then
+			warn("Failed to save event to DataStore:", dsError)
+		end
 		
 		-- Notify all players
 		for _, plr in pairs(Players:GetPlayers()) do
@@ -4527,10 +4538,14 @@ AdminEvent.OnServerInvoke = function(player, action, data)
 		end)
 		
 		-- Auto-stop after duration
+		local eventId = os.time() -- Unique identifier for this event instance
+		CurrentEvent.EventId = eventId
+		
 		task.delay(duration, function()
-			if CurrentEvent.Active and CurrentEvent.Type == eventType then
+			if CurrentEvent.Active and CurrentEvent.Type == eventType and CurrentEvent.EventId == eventId then
 				CurrentEvent.Active = false
 				CurrentEvent.Type = nil
+				CurrentEvent.EventId = nil
 				
 				-- Save to DataStore
 				pcall(function()
@@ -4568,13 +4583,17 @@ AdminEvent.OnServerInvoke = function(player, action, data)
 		local eventType = CurrentEvent.Type
 		CurrentEvent.Active = false
 		CurrentEvent.Type = nil
+		CurrentEvent.EventId = nil -- Clear event ID to prevent auto-stop
 		
 		-- Save to DataStore
-		pcall(function()
+		local dsSuccess, dsError = pcall(function()
 			EventDataStore:SetAsync("CurrentEvent", {
 				Active = false
 			})
 		end)
+		if not dsSuccess then
+			warn("Failed to save event stop to DataStore:", dsError)
+		end
 		
 		-- Notify all players
 		for _, plr in pairs(Players:GetPlayers()) do
@@ -4618,7 +4637,7 @@ AdminEvent.OnServerInvoke = function(player, action, data)
 end
 
 -- [[ MESSAGING SERVICE SUBSCRIPTION ]] --
-pcall(function()
+local msSuccess, msError = pcall(function()
 	MessagingService:SubscribeAsync("GlobalEvent", function(message)
 		local data = message.Data
 		
@@ -4650,6 +4669,10 @@ pcall(function()
 	end)
 end)
 
+if not msSuccess then
+	warn("Failed to subscribe to MessagingService:", msError)
+end
+
 -- [[ LOAD EVENT ON START ]] --
 task.spawn(function()
 	local success, eventData = pcall(function()
@@ -4659,9 +4682,11 @@ task.spawn(function()
 	if success and eventData and eventData.Active then
 		local elapsed = os.time() - eventData.StartTime
 		if elapsed < eventData.Duration then
+			-- Event is still valid, continue it
 			CurrentEvent.Type = eventData.Type
 			CurrentEvent.Active = true
 			CurrentEvent.StartTime = eventData.StartTime
+			CurrentEvent.EventId = eventData.StartTime -- Use start time as event ID
 			
 			-- Auto-stop after remaining duration
 			local remaining = eventData.Duration - elapsed
@@ -4669,17 +4694,32 @@ task.spawn(function()
 				if CurrentEvent.Active and CurrentEvent.Type == eventData.Type then
 					CurrentEvent.Active = false
 					CurrentEvent.Type = nil
+					CurrentEvent.EventId = nil
 					
-					pcall(function()
+					local dsSuccess, dsError = pcall(function()
 						EventDataStore:SetAsync("CurrentEvent", {
 							Active = false
 						})
 					end)
+					if not dsSuccess then
+						warn("Failed to update DataStore on event end:", dsError)
+					end
 					
 					for _, plr in pairs(Players:GetPlayers()) do
 						EventNotification:FireClient(plr, eventData.Type, 0, "END")
 					end
 				end
+			end)
+		else
+			-- Event has expired, clean it up
+			CurrentEvent.Active = false
+			CurrentEvent.Type = nil
+			CurrentEvent.EventId = nil
+			
+			pcall(function()
+				EventDataStore:SetAsync("CurrentEvent", {
+					Active = false
+				})
 			end)
 		end
 	end
@@ -4714,6 +4754,8 @@ local EventVFXTrigger = Remotes:WaitForChild("EventVFXTrigger")
 
 -- [[ ADMIN CHECK ]] --
 local isAdmin = false
+local adminCheckComplete = false
+
 task.spawn(function()
 	local success, result = pcall(function()
 		return AdminEvent:InvokeServer("CheckAdmin")
@@ -4722,9 +4764,16 @@ task.spawn(function()
 	if success and result == true then
 		isAdmin = true
 	end
+	adminCheckComplete = true
 end)
 
-task.wait(1)
+-- Wait for admin check to complete (max 5 seconds)
+local timeout = 0
+while not adminCheckComplete and timeout < 50 do
+	task.wait(0.1)
+	timeout = timeout + 1
+end
+
 if not isAdmin then
 	script:Destroy()
 	return
@@ -5255,8 +5304,8 @@ local function ShowNotification(eventType, duration, action, customMessage)
 		NotificationContainer.Visible = false
 	end)
 	
-	-- Trigger VFX
-	EventVFXTrigger:FireServer(eventType, action)
+	-- Note: VFX should be triggered from server-side based on the event
+	-- EventVFXTrigger removed to prevent client-side exploitation
 end
 
 EventNotification.OnClientEvent:Connect(function(eventType, duration, action, customMessage)
