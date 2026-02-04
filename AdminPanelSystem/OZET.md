@@ -10,8 +10,8 @@ Her şey bu 3 dosyada:
 ### 2️⃣ HANGI_DOSYALAR.md
 Hangi dosyaları değiştireceğini buradan öğren.
 
-### 3️⃣ DOSYA_YAPISI.md
-Dosya yapısını buradan öğren.
+### 3️⃣ OYUN_ICI_YAPILANMA.md
+**Roblox Studio'da nasıl organize edilir?** Tam rehber burada!
 
 ---
 
@@ -55,25 +55,24 @@ AdminPanelSystem/Shared/DebugConfig.lua
 
 ---
 
-## 🚀 ROBLOX'A KOPYALAMA
+## 🚀 ROBLOX STUDIO'DA OLUŞTURMA
 
-### Server (ServerScriptService):
-```
-Administration/AdminManager (ModuleScript)
-Security/AntiCheatSystem (ModuleScript)
-Systems/EventLogger (ModuleScript)
-MainInit (Script)
-```
+**Detaylı rehber:** `OYUN_ICI_YAPILANMA.md` dosyasına bak!
 
-### Client (StarterPlayer/StarterPlayerScripts):
-```
-AdminClient (LocalScript)
-```
+### Hızlı Özet:
 
-### Shared (ReplicatedStorage/Modules):
-```
-DebugConfig (ModuleScript)
-```
+**ServerScriptService:**
+- Administration/ → AdminManager (ModuleScript)
+- Security/ → AntiCheatSystem (ModuleScript)
+- Systems/ → EventLogger (ModuleScript)
+- MainInit (Script)
+
+**StarterPlayer/StarterPlayerScripts:**
+- AdminClient (LocalScript)
+
+**ReplicatedStorage:**
+- Modules/ → DebugConfig (ModuleScript)
+- Remotes/ → 3 RemoteEvent/Function
 
 ---
 

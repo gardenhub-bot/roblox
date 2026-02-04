@@ -5,18 +5,18 @@
 
 ---
 
-## 📁 YENİ DOSYA YAPISI
+## 📁 DOSYA YAPISI HAKKINDA
 
-Admin Panel sistemi artık düzenli klasörlerde:
+**ÖNEMLİ:** İki farklı yapı var:
 
-```
-AdminPanelSystem/
-├── Server/           → Sunucu tarafı scriptler
-├── Client/           → İstemci tarafı scriptler  
-├── Shared/           → Ortak modüller
-├── Scripts/          → Yardımcı scriptler
-└── Documentation/    → Tüm dökümanlar
-```
+1. **GitHub'daki Klasörler** (AdminPanelSystem/Server/, Client/, vb.)
+   - Sadece kod organizasyonu için
+   - İndirmeyi kolaylaştırır
+
+2. **Roblox Studio'daki Klasörler** (ServerScriptService, ReplicatedStorage, vb.)
+   - **Bu önemli olan!**
+   - Oyunda çalışması için gerekli
+   - **Detaylı yapı için:** `OYUN_ICI_YAPILANMA.md` dosyasına bakın!
 
 ---
 
@@ -41,38 +41,16 @@ AdminPanelSystem/
 
 ## 🚀 NASIL KULLANACAKSIN?
 
-### Adım 1: Dosyaları Roblox'a Kopyala
+### Adım 1: Roblox Studio'da Klasörleri Oluştur
 
-**SUNUCU TARAFLARI** (ServerScriptService):
-```
-ServerScriptService/
-├── Administration/
-│   └── AdminManager (ModuleScript)
-├── Security/
-│   └── AntiCheatSystem (ModuleScript)
-└── Systems/
-    └── EventLogger (ModuleScript)
-```
+**Tam detaylı rehber için:** `OYUN_ICI_YAPILANMA.md` dosyasına bak!
 
-**İSTEMCİ TARAFI** (StarterPlayer):
-```
-StarterPlayer/
-└── StarterPlayerScripts/
-    └── AdminClient (LocalScript)
-```
-
-**ORTAK MODÜL** (ReplicatedStorage):
-```
-ReplicatedStorage/
-└── Modules/
-    └── DebugConfig (ModuleScript)
-```
-
-**BAŞLATMA SCRİPTİ** (ServerScriptService):
-```
-ServerScriptService/
-└── MainInit (Script)  ← MainInitScript.lua içeriğini buraya
-```
+**Hızlı Özet:**
+1. ServerScriptService'de klasörler oluştur (Administration, Security, Systems)
+2. Her klasöre ModuleScript'leri ekle
+3. ReplicatedStorage'a Modules ve Remotes klasörleri ekle
+4. StarterPlayerScripts'e AdminClient'i ekle (LocalScript olarak)
+5. MainInitScript'i ServerScriptService'e ekle (Script olarak)
 
 ### Adım 2: Admin ID'ni Ekle
 
