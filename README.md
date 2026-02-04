@@ -2,7 +2,7 @@
 
 ## 🚀 HIZLI BAŞLANGIÇ
 
-1. **KURULUM_TALIMATI.txt** dosyasını oku
+1. **TALIMATLAR/KURULUM_TALIMATI.txt** dosyasını oku
 2. **GUNCEL_SCRIPTLER/** klasöründen scriptleri kopyala
 3. Roblox Studio'da talimatlara göre yerleştir
 4. Test et
@@ -18,11 +18,12 @@
    ├── DebugConfig.lua
    └── MainInitScript.lua
 
-/KURULUM_TALIMATI.txt       ← TEK TALİMAT dosyası (Her zaman güncel)
+/TALIMATLAR/                ← TÜM TALİMATLAR burada (Kolay bulunabilir!)
+   ├── KURULUM_TALIMATI.txt
+   ├── YENIDEN_DUZENLEME_RAPORU.txt
+   └── README.txt
 
 /Old/                        ← Eski dokümanlar (Referans için)
-
-/AdminPanelSystem/           ← GitHub organizasyon klasörü
 ```
 
 ## ✅ ÖZELLİKLER
@@ -37,16 +38,16 @@
 
 ## 📖 KULLANIM
 
-Detaylı kurulum ve kullanım için: **KURULUM_TALIMATI.txt**
+Detaylı kurulum ve kullanım için: **TALIMATLAR/KURULUM_TALIMATI.txt**
 
 ## 🔄 GÜNCELLEME
 
 Yeni özellik eklendiğinde:
 1. GUNCEL_SCRIPTLER/ klasöründeki dosyalar güncellenir
-2. KURULUM_TALIMATI.txt güncellenir  
+2. TALIMATLAR/ klasöründeki dosyalar güncellenir  
 3. Bu README güncellenir
 
-Her zaman KURULUM_TALIMATI.txt'i takip et!
+Her zaman TALIMATLAR/KURULUM_TALIMATI.txt'i takip et!
 
 ---
 
