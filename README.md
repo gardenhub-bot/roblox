@@ -4413,6 +4413,858 @@ return MapConfig
 
 ----------------------------------------------------------
 
+AdminManager :
+
+-- ServerScriptService/Systems/AdminManager.lua
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local MessagingService = game:GetService("MessagingService")
+local DataStoreService = game:GetService("DataStoreService")
+
+-- [[ REMOTE EVENTS ]] --
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+-- AdminEvent - RemoteFunction for admin check
+local AdminEvent = Remotes:FindFirstChild("AdminEvent")
+if not AdminEvent then
+	AdminEvent = Instance.new("RemoteFunction")
+	AdminEvent.Name = "AdminEvent"
+	AdminEvent.Parent = Remotes
+end
+
+-- EventNotification - RemoteEvent for event notifications
+local EventNotification = Remotes:FindFirstChild("EventNotification")
+if not EventNotification then
+	EventNotification = Instance.new("RemoteEvent")
+	EventNotification.Name = "EventNotification"
+	EventNotification.Parent = Remotes
+end
+
+-- EventVFXTrigger - RemoteEvent for event VFX
+local EventVFXTrigger = Remotes:FindFirstChild("EventVFXTrigger")
+if not EventVFXTrigger then
+	EventVFXTrigger = Instance.new("RemoteEvent")
+	EventVFXTrigger.Name = "EventVFXTrigger"
+	EventVFXTrigger.Parent = Remotes
+end
+
+-- [[ ADMIN LIST ]] --
+local Admins = {
+	["ChrolloLucifer"] = true,
+	-- Add more admins here
+}
+
+-- [[ DATASTORE ]] --
+local EventDataStore = DataStoreService:GetDataStore("GlobalEvents")
+
+-- [[ CURRENT EVENT ]] --
+local CurrentEvent = {
+	Type = nil,
+	Active = false,
+	StartTime = 0
+}
+
+-- [[ EVENT TYPES ]] --
+local EventTypes = {
+	"2X_IQ",
+	"2X_DAMAGE", 
+	"2X_COINS",
+	"2X_LUCK",
+	"FREE_SPINS",
+	"BOSS_HUNT",
+	"TREASURE_RAIN"
+}
+
+-- [[ ADMIN CHECK ]] --
+AdminEvent.OnServerInvoke = function(player, action)
+	if action == "CheckAdmin" then
+		if Admins[player.Name] then
+			return true
+		else
+			return false
+		end
+	elseif action == "StartEvent" then
+		if not Admins[player.Name] then
+			return {success = false, message = "Not authorized"}
+		end
+		
+		local eventType = action[2]
+		local duration = action[3] or 3600 -- Default 1 hour
+		
+		if CurrentEvent.Active then
+			return {success = false, message = "Event already active"}
+		end
+		
+		-- Start event
+		CurrentEvent.Type = eventType
+		CurrentEvent.Active = true
+		CurrentEvent.StartTime = os.time()
+		
+		-- Save to DataStore
+		pcall(function()
+			EventDataStore:SetAsync("CurrentEvent", {
+				Type = eventType,
+				Active = true,
+				StartTime = CurrentEvent.StartTime,
+				Duration = duration
+			})
+		end)
+		
+		-- Notify all players
+		for _, plr in pairs(Players:GetPlayers()) do
+			EventNotification:FireClient(plr, eventType, duration, "START")
+		end
+		
+		-- Publish via MessagingService for cross-server
+		pcall(function()
+			MessagingService:PublishAsync("GlobalEvent", {
+				Action = "START",
+				Type = eventType,
+				Duration = duration,
+				StartTime = CurrentEvent.StartTime
+			})
+		end)
+		
+		-- Auto-stop after duration
+		task.delay(duration, function()
+			if CurrentEvent.Active and CurrentEvent.Type == eventType then
+				CurrentEvent.Active = false
+				CurrentEvent.Type = nil
+				
+				-- Save to DataStore
+				pcall(function()
+					EventDataStore:SetAsync("CurrentEvent", {
+						Active = false
+					})
+				end)
+				
+				-- Notify all players
+				for _, plr in pairs(Players:GetPlayers()) do
+					EventNotification:FireClient(plr, eventType, 0, "END")
+				end
+				
+				-- Publish end via MessagingService
+				pcall(function()
+					MessagingService:PublishAsync("GlobalEvent", {
+						Action = "END",
+						Type = eventType
+					})
+				end)
+			end
+		end)
+		
+		return {success = true, message = "Event started: " .. eventType}
+		
+	elseif action == "StopEvent" then
+		if not Admins[player.Name] then
+			return {success = false, message = "Not authorized"}
+		end
+		
+		if not CurrentEvent.Active then
+			return {success = false, message = "No active event"}
+		end
+		
+		local eventType = CurrentEvent.Type
+		CurrentEvent.Active = false
+		CurrentEvent.Type = nil
+		
+		-- Save to DataStore
+		pcall(function()
+			EventDataStore:SetAsync("CurrentEvent", {
+				Active = false
+			})
+		end)
+		
+		-- Notify all players
+		for _, plr in pairs(Players:GetPlayers()) do
+			EventNotification:FireClient(plr, eventType, 0, "END")
+		end
+		
+		-- Publish end via MessagingService
+		pcall(function()
+			MessagingService:PublishAsync("GlobalEvent", {
+				Action = "END",
+				Type = eventType
+			})
+		end)
+		
+		return {success = true, message = "Event stopped"}
+		
+	elseif action == "SendAnnouncement" then
+		if not Admins[player.Name] then
+			return {success = false, message = "Not authorized"}
+		end
+		
+		local message = action[2]
+		
+		-- Notify all players
+		for _, plr in pairs(Players:GetPlayers()) do
+			EventNotification:FireClient(plr, "ANNOUNCEMENT", 0, message)
+		end
+		
+		-- Publish via MessagingService
+		pcall(function()
+			MessagingService:PublishAsync("GlobalEvent", {
+				Action = "ANNOUNCEMENT",
+				Message = message
+			})
+		end)
+		
+		return {success = true, message = "Announcement sent"}
+	end
+	
+	return {success = false, message = "Unknown action"}
+end
+
+-- [[ MESSAGING SERVICE SUBSCRIPTION ]] --
+pcall(function()
+	MessagingService:SubscribeAsync("GlobalEvent", function(message)
+		local data = message.Data
+		
+		if data.Action == "START" then
+			CurrentEvent.Type = data.Type
+			CurrentEvent.Active = true
+			CurrentEvent.StartTime = data.StartTime
+			
+			-- Notify all players in this server
+			for _, plr in pairs(Players:GetPlayers()) do
+				EventNotification:FireClient(plr, data.Type, data.Duration, "START")
+			end
+			
+		elseif data.Action == "END" then
+			CurrentEvent.Active = false
+			CurrentEvent.Type = nil
+			
+			-- Notify all players in this server
+			for _, plr in pairs(Players:GetPlayers()) do
+				EventNotification:FireClient(plr, data.Type, 0, "END")
+			end
+			
+		elseif data.Action == "ANNOUNCEMENT" then
+			-- Notify all players in this server
+			for _, plr in pairs(Players:GetPlayers()) do
+				EventNotification:FireClient(plr, "ANNOUNCEMENT", 0, data.Message)
+			end
+		end
+	end)
+end)
+
+-- [[ LOAD EVENT ON START ]] --
+task.spawn(function()
+	local success, eventData = pcall(function()
+		return EventDataStore:GetAsync("CurrentEvent")
+	end)
+	
+	if success and eventData and eventData.Active then
+		local elapsed = os.time() - eventData.StartTime
+		if elapsed < eventData.Duration then
+			CurrentEvent.Type = eventData.Type
+			CurrentEvent.Active = true
+			CurrentEvent.StartTime = eventData.StartTime
+			
+			-- Auto-stop after remaining duration
+			local remaining = eventData.Duration - elapsed
+			task.delay(remaining, function()
+				if CurrentEvent.Active and CurrentEvent.Type == eventData.Type then
+					CurrentEvent.Active = false
+					CurrentEvent.Type = nil
+					
+					pcall(function()
+						EventDataStore:SetAsync("CurrentEvent", {
+							Active = false
+						})
+					end)
+					
+					for _, plr in pairs(Players:GetPlayers()) do
+						EventNotification:FireClient(plr, eventData.Type, 0, "END")
+					end
+				end
+			end)
+		end
+	end
+end)
+
+-- [[ PLAYER JOIN - NOTIFY OF ACTIVE EVENT ]] --
+Players.PlayerAdded:Connect(function(player)
+	if CurrentEvent.Active then
+		local elapsed = os.time() - CurrentEvent.StartTime
+		EventNotification:FireClient(player, CurrentEvent.Type, elapsed, "ONGOING")
+	end
+end)
+
+----------------------------------------------------------
+
+AdminClient :
+
+-- StarterPlayer/StarterPlayerScripts/AdminClient.lua (LocalScript)
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- [[ REMOTE EVENTS ]] --
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local AdminEvent = Remotes:WaitForChild("AdminEvent")
+local EventNotification = Remotes:WaitForChild("EventNotification")
+local EventVFXTrigger = Remotes:WaitForChild("EventVFXTrigger")
+
+-- [[ ADMIN CHECK ]] --
+local isAdmin = false
+task.spawn(function()
+	local success, result = pcall(function()
+		return AdminEvent:InvokeServer("CheckAdmin")
+	end)
+	
+	if success and result == true then
+		isAdmin = true
+	end
+end)
+
+task.wait(1)
+if not isAdmin then
+	script:Destroy()
+	return
+end
+
+-- [[ SCREEN GUI ]] --
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AdminPanelGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = playerGui
+
+-- [[ OPEN BUTTON ]] --
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Name = "OpenButton"
+OpenBtn.Size = UDim2.new(0, 60, 0, 60)
+OpenBtn.Position = UDim2.new(0, 20, 0.37, -30)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+OpenBtn.BorderSizePixel = 0
+OpenBtn.Text = "🛡️"
+OpenBtn.TextSize = 32
+OpenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenBtn.Font = Enum.Font.GothamBold
+OpenBtn.Parent = ScreenGui
+
+local OpenBtnCorner = Instance.new("UICorner")
+OpenBtnCorner.CornerRadius = UDim.new(0, 12)
+OpenBtnCorner.Parent = OpenBtn
+
+local OpenBtnStroke = Instance.new("UIStroke")
+OpenBtnStroke.Color = Color3.fromRGB(100, 100, 255)
+OpenBtnStroke.Thickness = 2
+OpenBtnStroke.Parent = OpenBtn
+
+-- [[ MAIN PANEL ]] --
+local MainPanel = Instance.new("Frame")
+MainPanel.Name = "MainPanel"
+MainPanel.Size = UDim2.new(0, 600, 0, 450)
+MainPanel.Position = UDim2.new(0.5, -300, 0.5, -225)
+MainPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+MainPanel.BorderSizePixel = 0
+MainPanel.Visible = false
+MainPanel.Parent = ScreenGui
+
+local MainPanelCorner = Instance.new("UICorner")
+MainPanelCorner.CornerRadius = UDim.new(0, 16)
+MainPanelCorner.Parent = MainPanel
+
+local MainPanelStroke = Instance.new("UIStroke")
+MainPanelStroke.Color = Color3.fromRGB(100, 100, 255)
+MainPanelStroke.Thickness = 3
+MainPanelStroke.Parent = MainPanel
+
+-- [[ HEADER ]] --
+local Header = Instance.new("Frame")
+Header.Name = "Header"
+Header.Size = UDim2.new(1, 0, 0, 50)
+Header.Position = UDim2.new(0, 0, 0, 0)
+Header.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+Header.BorderSizePixel = 0
+Header.Parent = MainPanel
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 16)
+HeaderCorner.Parent = Header
+
+local HeaderTitle = Instance.new("TextLabel")
+HeaderTitle.Name = "Title"
+HeaderTitle.Size = UDim2.new(1, -100, 1, 0)
+HeaderTitle.Position = UDim2.new(0, 20, 0, 0)
+HeaderTitle.BackgroundTransparency = 1
+HeaderTitle.Text = "🛡️ ADMIN PANEL"
+HeaderTitle.TextSize = 24
+HeaderTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+HeaderTitle.Font = Enum.Font.GothamBold
+HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+HeaderTitle.Parent = Header
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Name = "CloseButton"
+CloseBtn.Size = UDim2.new(0, 40, 0, 40)
+CloseBtn.Position = UDim2.new(1, -50, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Text = "✕"
+CloseBtn.TextSize = 24
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Parent = Header
+
+local CloseBtnCorner = Instance.new("UICorner")
+CloseBtnCorner.CornerRadius = UDim.new(0, 10)
+CloseBtnCorner.Parent = CloseBtn
+
+-- [[ CONTENT AREA ]] --
+local ContentArea = Instance.new("Frame")
+ContentArea.Name = "ContentArea"
+ContentArea.Size = UDim2.new(1, -20, 1, -70)
+ContentArea.Position = UDim2.new(0, 10, 0, 60)
+ContentArea.BackgroundTransparency = 1
+ContentArea.Parent = MainPanel
+
+-- [[ TAB BUTTONS ]] --
+local TabContainer = Instance.new("Frame")
+TabContainer.Name = "TabContainer"
+TabContainer.Size = UDim2.new(0, 150, 1, 0)
+TabContainer.Position = UDim2.new(0, 0, 0, 0)
+TabContainer.BackgroundTransparency = 1
+TabContainer.Parent = ContentArea
+
+local TabList = Instance.new("UIListLayout")
+TabList.Padding = UDim.new(0, 10)
+TabList.SortOrder = Enum.SortOrder.LayoutOrder
+TabList.Parent = TabContainer
+
+local function CreateTabButton(name, icon, order)
+	local btn = Instance.new("TextButton")
+	btn.Name = name .. "Tab"
+	btn.Size = UDim2.new(1, 0, 0, 40)
+	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+	btn.BorderSizePixel = 0
+	btn.Text = icon .. " " .. name
+	btn.TextSize = 16
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Font = Enum.Font.Gotham
+	btn.TextXAlignment = Enum.TextXAlignment.Left
+	btn.LayoutOrder = order
+	btn.Parent = TabContainer
+	
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, 10)
+	padding.Parent = btn
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = btn
+	
+	return btn
+end
+
+local EventsTab = CreateTabButton("Events", "🎉", 1)
+local AnnounceTab = CreateTabButton("Announce", "📢", 2)
+local PlayersTab = CreateTabButton("Players", "👥", 3)
+
+-- [[ PAGE CONTAINER ]] --
+local PageContainer = Instance.new("Frame")
+PageContainer.Name = "PageContainer"
+PageContainer.Size = UDim2.new(1, -170, 1, 0)
+PageContainer.Position = UDim2.new(0, 160, 0, 0)
+PageContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+PageContainer.BorderSizePixel = 0
+PageContainer.Parent = ContentArea
+
+local PageCorner = Instance.new("UICorner")
+PageCorner.CornerRadius = UDim.new(0, 12)
+PageCorner.Parent = PageContainer
+
+-- [[ EVENTS PAGE ]] --
+local EventsPage = Instance.new("ScrollingFrame")
+EventsPage.Name = "EventsPage"
+EventsPage.Size = UDim2.new(1, -20, 1, -20)
+EventsPage.Position = UDim2.new(0, 10, 0, 10)
+EventsPage.BackgroundTransparency = 1
+EventsPage.BorderSizePixel = 0
+EventsPage.ScrollBarThickness = 6
+EventsPage.CanvasSize = UDim2.new(0, 0, 0, 0)
+EventsPage.AutomaticCanvasSize = Enum.AutomaticSize.Y
+EventsPage.Parent = PageContainer
+
+local EventsLayout = Instance.new("UIListLayout")
+EventsLayout.Padding = UDim.new(0, 10)
+EventsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+EventsLayout.Parent = EventsPage
+
+local EventTypes = {
+	{Name = "2X IQ", Icon = "🧠", Type = "2X_IQ"},
+	{Name = "2X Damage", Icon = "⚔️", Type = "2X_DAMAGE"},
+	{Name = "2X Coins", Icon = "💰", Type = "2X_COINS"},
+	{Name = "2X Luck", Icon = "🍀", Type = "2X_LUCK"},
+	{Name = "Free Spins", Icon = "🎰", Type = "FREE_SPINS"},
+	{Name = "Boss Hunt", Icon = "👹", Type = "BOSS_HUNT"},
+	{Name = "Treasure Rain", Icon = "💎", Type = "TREASURE_RAIN"}
+}
+
+local function CreateEventButton(eventData, order)
+	local frame = Instance.new("Frame")
+	frame.Name = eventData.Type
+	frame.Size = UDim2.new(1, 0, 0, 50)
+	frame.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+	frame.BorderSizePixel = 0
+	frame.LayoutOrder = order
+	frame.Parent = EventsPage
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = frame
+	
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0.5, 0, 1, 0)
+	label.Position = UDim2.new(0, 10, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = eventData.Icon .. " " .. eventData.Name
+	label.TextSize = 18
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.Font = Enum.Font.GothamBold
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
+	
+	local startBtn = Instance.new("TextButton")
+	startBtn.Name = "StartButton"
+	startBtn.Size = UDim2.new(0, 80, 0, 35)
+	startBtn.Position = UDim2.new(1, -170, 0.5, -17.5)
+	startBtn.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
+	startBtn.BorderSizePixel = 0
+	startBtn.Text = "START"
+	startBtn.TextSize = 14
+	startBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	startBtn.Font = Enum.Font.GothamBold
+	startBtn.Parent = frame
+	
+	local startCorner = Instance.new("UICorner")
+	startCorner.CornerRadius = UDim.new(0, 8)
+	startCorner.Parent = startBtn
+	
+	local stopBtn = Instance.new("TextButton")
+	stopBtn.Name = "StopButton"
+	stopBtn.Size = UDim2.new(0, 80, 0, 35)
+	stopBtn.Position = UDim2.new(1, -85, 0.5, -17.5)
+	stopBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+	stopBtn.BorderSizePixel = 0
+	stopBtn.Text = "STOP"
+	stopBtn.TextSize = 14
+	stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	stopBtn.Font = Enum.Font.GothamBold
+	stopBtn.Parent = frame
+	
+	local stopCorner = Instance.new("UICorner")
+	stopCorner.CornerRadius = UDim.new(0, 8)
+	stopCorner.Parent = stopBtn
+	
+	-- Start button click
+	startBtn.MouseButton1Click:Connect(function()
+		local success, result = pcall(function()
+			return AdminEvent:InvokeServer("StartEvent", {eventData.Type, 3600})
+		end)
+		if success and result and result.success then
+			print("✅ Event started:", eventData.Name)
+		end
+	end)
+	
+	-- Stop button click
+	stopBtn.MouseButton1Click:Connect(function()
+		local success, result = pcall(function()
+			return AdminEvent:InvokeServer("StopEvent")
+		end)
+		if success and result and result.success then
+			print("⛔ Event stopped")
+		end
+	end)
+	
+	return frame
+end
+
+for i, eventData in ipairs(EventTypes) do
+	CreateEventButton(eventData, i)
+end
+
+-- [[ ANNOUNCE PAGE ]] --
+local AnnouncePage = Instance.new("Frame")
+AnnouncePage.Name = "AnnouncePage"
+AnnouncePage.Size = UDim2.new(1, -20, 1, -20)
+AnnouncePage.Position = UDim2.new(0, 10, 0, 10)
+AnnouncePage.BackgroundTransparency = 1
+AnnouncePage.Visible = false
+AnnouncePage.Parent = PageContainer
+
+local AnnounceTitle = Instance.new("TextLabel")
+AnnounceTitle.Size = UDim2.new(1, 0, 0, 30)
+AnnounceTitle.Position = UDim2.new(0, 0, 0, 0)
+AnnounceTitle.BackgroundTransparency = 1
+AnnounceTitle.Text = "📢 Send Global Announcement"
+AnnounceTitle.TextSize = 20
+AnnounceTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+AnnounceTitle.Font = Enum.Font.GothamBold
+AnnounceTitle.TextXAlignment = Enum.TextXAlignment.Left
+AnnounceTitle.Parent = AnnouncePage
+
+local AnnounceInput = Instance.new("TextBox")
+AnnounceInput.Name = "MessageInput"
+AnnounceInput.Size = UDim2.new(1, 0, 0, 120)
+AnnounceInput.Position = UDim2.new(0, 0, 0, 40)
+AnnounceInput.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+AnnounceInput.BorderSizePixel = 0
+AnnounceInput.Text = ""
+AnnounceInput.PlaceholderText = "Enter announcement message..."
+AnnounceInput.TextSize = 16
+AnnounceInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+AnnounceInput.Font = Enum.Font.Gotham
+AnnounceInput.TextXAlignment = Enum.TextXAlignment.Left
+AnnounceInput.TextYAlignment = Enum.TextYAlignment.Top
+AnnounceInput.TextWrapped = true
+AnnounceInput.MultiLine = true
+AnnounceInput.ClearTextOnFocus = false
+AnnounceInput.Parent = AnnouncePage
+
+local AnnounceInputCorner = Instance.new("UICorner")
+AnnounceInputCorner.CornerRadius = UDim.new(0, 10)
+AnnounceInputCorner.Parent = AnnounceInput
+
+local AnnounceInputPadding = Instance.new("UIPadding")
+AnnounceInputPadding.PaddingLeft = UDim.new(0, 10)
+AnnounceInputPadding.PaddingRight = UDim.new(0, 10)
+AnnounceInputPadding.PaddingTop = UDim.new(0, 10)
+AnnounceInputPadding.PaddingBottom = UDim.new(0, 10)
+AnnounceInputPadding.Parent = AnnounceInput
+
+local AnnounceSendBtn = Instance.new("TextButton")
+AnnounceSendBtn.Name = "SendButton"
+AnnounceSendBtn.Size = UDim2.new(0, 150, 0, 45)
+AnnounceSendBtn.Position = UDim2.new(0.5, -75, 0, 170)
+AnnounceSendBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+AnnounceSendBtn.BorderSizePixel = 0
+AnnounceSendBtn.Text = "📤 SEND"
+AnnounceSendBtn.TextSize = 18
+AnnounceSendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+AnnounceSendBtn.Font = Enum.Font.GothamBold
+AnnounceSendBtn.Parent = AnnouncePage
+
+local AnnounceSendCorner = Instance.new("UICorner")
+AnnounceSendCorner.CornerRadius = UDim.new(0, 10)
+AnnounceSendCorner.Parent = AnnounceSendBtn
+
+-- Send announcement button
+AnnounceSendBtn.MouseButton1Click:Connect(function()
+	local message = AnnounceInput.Text
+	if message ~= "" then
+		local success, result = pcall(function()
+			return AdminEvent:InvokeServer("SendAnnouncement", {message})
+		end)
+		if success and result and result.success then
+			AnnounceInput.Text = ""
+			print("✅ Announcement sent!")
+		end
+	end
+end)
+
+-- [[ PLAYERS PAGE ]] --
+local PlayersPage = Instance.new("Frame")
+PlayersPage.Name = "PlayersPage"
+PlayersPage.Size = UDim2.new(1, -20, 1, -20)
+PlayersPage.Position = UDim2.new(0, 10, 0, 10)
+PlayersPage.BackgroundTransparency = 1
+PlayersPage.Visible = false
+PlayersPage.Parent = PageContainer
+
+local PlayersTitle = Instance.new("TextLabel")
+PlayersTitle.Size = UDim2.new(1, 0, 0, 30)
+PlayersTitle.BackgroundTransparency = 1
+PlayersTitle.Text = "👥 Online Players: " .. #Players:GetPlayers()
+PlayersTitle.TextSize = 20
+PlayersTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayersTitle.Font = Enum.Font.GothamBold
+PlayersTitle.TextXAlignment = Enum.TextXAlignment.Left
+PlayersTitle.Parent = PlayersPage
+
+-- [[ TAB SWITCHING ]] --
+local currentPage = EventsPage
+
+local function SwitchPage(page, btn)
+	if currentPage then
+		currentPage.Visible = false
+	end
+	page.Visible = true
+	currentPage = page
+	
+	-- Update button colors
+	for _, child in pairs(TabContainer:GetChildren()) do
+		if child:IsA("TextButton") then
+			child.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+		end
+	end
+	btn.BackgroundColor3 = Color3.fromRGB(70, 70, 90)
+end
+
+EventsTab.MouseButton1Click:Connect(function()
+	SwitchPage(EventsPage, EventsTab)
+end)
+
+AnnounceTab.MouseButton1Click:Connect(function()
+	SwitchPage(AnnouncePage, AnnounceTab)
+end)
+
+PlayersTab.MouseButton1Click:Connect(function()
+	SwitchPage(PlayersPage, PlayersTab)
+end)
+
+-- Set default tab
+EventsTab.BackgroundColor3 = Color3.fromRGB(70, 70, 90)
+
+-- [[ PANEL TOGGLE ]] --
+OpenBtn.MouseButton1Click:Connect(function()
+	MainPanel.Visible = true
+	OpenBtn.Visible = false
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+	MainPanel.Visible = false
+	OpenBtn.Visible = true
+end)
+
+-- [[ EVENT NOTIFICATION UI ]] --
+local NotificationContainer = Instance.new("Frame")
+NotificationContainer.Name = "NotificationContainer"
+NotificationContainer.Size = UDim2.new(0, 300, 0, 100)
+NotificationContainer.Position = UDim2.new(1, -320, 0, 20)
+NotificationContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+NotificationContainer.BorderSizePixel = 0
+NotificationContainer.Visible = false
+NotificationContainer.Parent = ScreenGui
+
+local NotifCorner = Instance.new("UICorner")
+NotifCorner.CornerRadius = UDim.new(0, 12)
+NotifCorner.Parent = NotificationContainer
+
+local NotifStroke = Instance.new("UIStroke")
+NotifStroke.Color = Color3.fromRGB(100, 255, 100)
+NotifStroke.Thickness = 3
+NotifStroke.Parent = NotificationContainer
+
+local NotifIcon = Instance.new("TextLabel")
+NotifIcon.Name = "Icon"
+NotifIcon.Size = UDim2.new(0, 60, 0, 60)
+NotifIcon.Position = UDim2.new(0, 10, 0, 20)
+NotifIcon.BackgroundTransparency = 1
+NotifIcon.Text = "🎉"
+NotifIcon.TextSize = 40
+NotifIcon.Parent = NotificationContainer
+
+local NotifTitle = Instance.new("TextLabel")
+NotifTitle.Name = "Title"
+NotifTitle.Size = UDim2.new(1, -80, 0, 30)
+NotifTitle.Position = UDim2.new(0, 75, 0, 15)
+NotifTitle.BackgroundTransparency = 1
+NotifTitle.Text = "EVENT STARTED"
+NotifTitle.TextSize = 16
+NotifTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+NotifTitle.Font = Enum.Font.GothamBold
+NotifTitle.TextXAlignment = Enum.TextXAlignment.Left
+NotifTitle.Parent = NotificationContainer
+
+local NotifMessage = Instance.new("TextLabel")
+NotifMessage.Name = "Message"
+NotifMessage.Size = UDim2.new(1, -80, 0, 40)
+NotifMessage.Position = UDim2.new(0, 75, 0, 45)
+NotifMessage.BackgroundTransparency = 1
+NotifMessage.Text = "2X IQ Event is now active!"
+NotifMessage.TextSize = 14
+NotifMessage.TextColor3 = Color3.fromRGB(200, 200, 200)
+NotifMessage.Font = Enum.Font.Gotham
+NotifMessage.TextXAlignment = Enum.TextXAlignment.Left
+NotifMessage.TextYAlignment = Enum.TextYAlignment.Top
+NotifMessage.TextWrapped = true
+NotifMessage.Parent = NotificationContainer
+
+-- [[ EVENT NOTIFICATION HANDLER ]] --
+local EventIcons = {
+	["2X_IQ"] = "🧠",
+	["2X_DAMAGE"] = "⚔️",
+	["2X_COINS"] = "💰",
+	["2X_LUCK"] = "🍀",
+	["FREE_SPINS"] = "🎰",
+	["BOSS_HUNT"] = "👹",
+	["TREASURE_RAIN"] = "💎",
+	["ANNOUNCEMENT"] = "📢"
+}
+
+local EventNames = {
+	["2X_IQ"] = "2X IQ",
+	["2X_DAMAGE"] = "2X Damage",
+	["2X_COINS"] = "2X Coins",
+	["2X_LUCK"] = "2X Luck",
+	["FREE_SPINS"] = "Free Spins",
+	["BOSS_HUNT"] = "Boss Hunt",
+	["TREASURE_RAIN"] = "Treasure Rain"
+}
+
+local function ShowNotification(eventType, duration, action, customMessage)
+	NotifIcon.Text = EventIcons[eventType] or "🎉"
+	
+	if eventType == "ANNOUNCEMENT" then
+		NotifTitle.Text = "📢 ANNOUNCEMENT"
+		NotifMessage.Text = customMessage or ""
+		NotifStroke.Color = Color3.fromRGB(255, 200, 0)
+	elseif action == "START" then
+		NotifTitle.Text = "EVENT STARTED!"
+		NotifMessage.Text = (EventNames[eventType] or eventType) .. " is now active!"
+		NotifStroke.Color = Color3.fromRGB(100, 255, 100)
+	elseif action == "END" then
+		NotifTitle.Text = "EVENT ENDED"
+		NotifMessage.Text = (EventNames[eventType] or eventType) .. " has ended."
+		NotifStroke.Color = Color3.fromRGB(255, 100, 100)
+	elseif action == "ONGOING" then
+		NotifTitle.Text = "EVENT ONGOING"
+		NotifMessage.Text = (EventNames[eventType] or eventType) .. " is active!"
+		NotifStroke.Color = Color3.fromRGB(100, 200, 255)
+	end
+	
+	-- Show animation
+	NotificationContainer.Position = UDim2.new(1, 0, 0, 20)
+	NotificationContainer.Visible = true
+	
+	local tweenIn = TweenService:Create(
+		NotificationContainer,
+		TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{Position = UDim2.new(1, -320, 0, 20)}
+	)
+	tweenIn:Play()
+	
+	-- Auto hide after 5 seconds
+	task.delay(5, function()
+		local tweenOut = TweenService:Create(
+			NotificationContainer,
+			TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+			{Position = UDim2.new(1, 0, 0, 20)}
+		)
+		tweenOut:Play()
+		tweenOut.Completed:Wait()
+		NotificationContainer.Visible = false
+	end)
+	
+	-- Trigger VFX
+	EventVFXTrigger:FireServer(eventType, action)
+end
+
+EventNotification.OnClientEvent:Connect(function(eventType, duration, action, customMessage)
+	ShowNotification(eventType, duration, action, customMessage)
+end)
+
+----------------------------------------------------------
+
 
 Roblox oyunu geliştiriyorum ve yardımına ihtiyacım var
 
