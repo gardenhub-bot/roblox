@@ -1,38 +1,86 @@
 # 🎮 Admin Sistemi - Hızlı Başlangıç Kılavuzu (Türkçe)
 
-## 📥 Kurulum (5 Dakika)
+## ⚠️ ÖNEMLİ NOT
+
+Bu dosyalar **kaynak kod** dosyalarıdır. Doğrudan Roblox'a "upload" edemezsiniz!
+
+**Doğru Kurulum:**
+1. Roblox Studio'da klasörleri oluşturun
+2. ModuleScript veya Script objeleri ekleyin
+3. .lua dosyalarının **içeriğini** kopyalayıp yapıştırın
+
+**Sorun mu yaşıyorsunuz?** → `TROUBLESHOOTING.md` dosyasına bakın!
+
+---
+
+## 📥 Kurulum (10 Dakika)
 
 ### 1. Dosyaları Yerleştir
 
-Tüm .lua dosyalarını Roblox Studio'da şu konumlara kopyalayın:
+⚠️ **DİKKAT:** `.lua` uzantılı dosyalar template'lerdir. Bunları şöyle kullanın:
 
+**Adım adım:**
+
+1. **ReplicatedStorage'da:**
+   - Sağ tık → Insert Object → Folder → Adı: "Modules"
+   - Modules'a sağ tık → Insert Object → ModuleScript → Adı: "DebugConfig"
+   - DebugConfig ModuleScript'ini aç
+   - `DebugConfig.lua` dosyasının içeriğini kopyala-yapıştır
+
+2. **ReplicatedStorage'da:**
+   - Sağ tık → Insert Object → Folder → Adı: "Remotes"
+   - (İçi boş kalacak, otomatik doldurulur)
+
+3. **ServerScriptService'de:**
+   - Folder oluştur: "Security"
+   - İçine ModuleScript: "AntiCheatSystem"
+   - AntiCheatSystem.lua içeriğini kopyala
+
+4. **ServerScriptService'de:**
+   - Folder oluştur: "Systems"
+   - İçine ModuleScript: "EventLogger"
+   - EventLogger.lua içeriğini kopyala
+
+5. **ServerScriptService'de:**
+   - Folder oluştur: "Administration"
+   - İçine ModuleScript: "AdminManager"
+   - AdminManager.lua içeriğini kopyala
+
+6. **ServerScriptService'de:**
+   - **Script** ekle (ModuleScript DEĞİL!): "MainInitScript"
+   - MainInitScript.lua içeriğini kopyala
+
+7. **StarterPlayer → StarterPlayerScripts'te:**
+   - LocalScript ekle: "AdminClient"
+   - AdminClient.lua içeriğini kopyala
+
+**Yapı şöyle olmalı:**
 ```
 📁 ReplicatedStorage
-   └─📁 Modules
-      └─📄 DebugConfig.lua
+   ├─📁 Modules
+   │  └─📜 DebugConfig (ModuleScript)
+   └─📁 Remotes (Folder - boş)
 
 📁 ServerScriptService  
    ├─📁 Security
-   │  └─📄 AntiCheatSystem.lua
+   │  └─📜 AntiCheatSystem (ModuleScript)
    ├─📁 Systems
-   │  └─📄 EventLogger.lua
-   └─📁 Administration
-      └─📄 AdminManager.lua
+   │  └─📜 EventLogger (ModuleScript)
+   ├─📁 Administration
+   │  └─📜 AdminManager (ModuleScript)
+   └─⚙️ MainInitScript (Script)
 
 📁 StarterPlayer
    └─📁 StarterPlayerScripts
-      └─📄 AdminClient.lua
-
-📁 ReplicatedStorage
-   └─📁 Remotes (Klasör oluştur - içi boş bırak)
+      └─⚙️ AdminClient (LocalScript)
 ```
 
 ### 2. Admin Kullanıcılarını Ekle
 
-`AdminManager.lua` dosyasını aç ve kendi UserID'ni ekle:
+`AdminManager` ModuleScript'ini aç ve kendi UserID'ni ekle:
 
 ```lua
--- Satır ~45 civarı
+-- Satır ~115 civarı
 AdminManager.Config = {
     Admins = {
         [12345678] = true, -- BURAYA KENDİ USERID'Nİ YAZ
@@ -46,21 +94,28 @@ AdminManager.Config = {
 
 ### 3. Sistemi Başlat
 
-Ana oyun script'ine (ServerScriptService içinde) şunu ekle:
+**MainInitScript zaten eklendi!** (Adım 1'de eklemiştiniz)
 
-```lua
--- En üste ekle
-local AdminManager = require(script.Parent.Administration.AdminManager)
+Eğer eklemediyseniz:
+- ServerScriptService'e **Script** (normal Script) ekleyin
+- `MainInitScript.lua` içeriğini kopyalayın
 
--- Script başladığında
-AdminManager.Initialize()
-```
+Bu script otomatik olarak:
+- ✅ Tüm modülleri kontrol eder
+- ✅ AdminManager'ı başlatır
+- ✅ Hataları raporlar
+- ✅ Oyunculara admin yetkisi verir
 
 ### 4. Test Et
 
 1. Play tuşuna bas
-2. **F2** tuşuna bas
-3. Admin paneli açılmalı! 🎉
+2. **Output penceresini aç** (View → Output)
+3. Yeşil ✅ mesajları görmelisin
+4. Oyuna gir
+5. **F2** tuşuna bas VEYA **sağ alt köşedeki 🔧 butonuna** tıkla
+6. Admin paneli açılmalı! 🎉
+
+**Açılmadı mı?** → `TROUBLESHOOTING.md` dosyasına bak!
 
 ---
 
@@ -69,6 +124,11 @@ AdminManager.Initialize()
 ### Admin Panelini Aç/Kapat
 - **F2** tuşu ile panel açılır/kapanır
 - **🔧 Butonu** (sağ alt köşe) ile de açılır/kapanır - YENİ! 🎉
+
+**Panel açılmıyorsa:**
+1. Output penceresini kontrol et
+2. IsAdmin attribute'unu kontrol et (Workspace → Players → SenninAdın → Attributes)
+3. TROUBLESHOOTING.md'ye bak
 
 ### Panel Sekmeleri
 
