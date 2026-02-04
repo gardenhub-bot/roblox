@@ -4528,7 +4528,7 @@ AdminEvent.OnServerInvoke = function(player, action, data)
 		end
 		
 		-- Publish via MessagingService for cross-server
-		pcall(function()
+		local msSuccess, msError = pcall(function()
 			MessagingService:PublishAsync("GlobalEvent", {
 				Action = "START",
 				Type = eventType,
@@ -4536,9 +4536,12 @@ AdminEvent.OnServerInvoke = function(player, action, data)
 				StartTime = CurrentEvent.StartTime
 			})
 		end)
+		if not msSuccess then
+			warn("Failed to publish START event via MessagingService:", msError)
+		end
 		
 		-- Auto-stop after duration
-		local eventId = os.time() -- Unique identifier for this event instance
+		local eventId = tostring(os.time()) .. "_" .. tostring(math.random(1000000, 9999999))
 		CurrentEvent.EventId = eventId
 		
 		task.delay(duration, function()
@@ -4560,12 +4563,15 @@ AdminEvent.OnServerInvoke = function(player, action, data)
 				end
 				
 				-- Publish end via MessagingService
-				pcall(function()
+				local msSuccess, msError = pcall(function()
 					MessagingService:PublishAsync("GlobalEvent", {
 						Action = "END",
 						Type = eventType
 					})
 				end)
+				if not msSuccess then
+					warn("Failed to publish END event via MessagingService:", msError)
+				end
 			end
 		end)
 		
@@ -4601,12 +4607,15 @@ AdminEvent.OnServerInvoke = function(player, action, data)
 		end
 		
 		-- Publish end via MessagingService
-		pcall(function()
+		local msSuccess, msError = pcall(function()
 			MessagingService:PublishAsync("GlobalEvent", {
 				Action = "END",
 				Type = eventType
 			})
 		end)
+		if not msSuccess then
+			warn("Failed to publish STOP event via MessagingService:", msError)
+		end
 		
 		return {success = true, message = "Event stopped"}
 		
@@ -4623,12 +4632,15 @@ AdminEvent.OnServerInvoke = function(player, action, data)
 		end
 		
 		-- Publish via MessagingService
-		pcall(function()
+		local msSuccess, msError = pcall(function()
 			MessagingService:PublishAsync("GlobalEvent", {
 				Action = "ANNOUNCEMENT",
 				Message = message
 			})
 		end)
+		if not msSuccess then
+			warn("Failed to publish ANNOUNCEMENT via MessagingService:", msError)
+		end
 		
 		return {success = true, message = "Announcement sent"}
 	end
@@ -4683,15 +4695,16 @@ task.spawn(function()
 		local elapsed = os.time() - eventData.StartTime
 		if elapsed < eventData.Duration then
 			-- Event is still valid, continue it
+			local restoredEventId = tostring(eventData.StartTime)
 			CurrentEvent.Type = eventData.Type
 			CurrentEvent.Active = true
 			CurrentEvent.StartTime = eventData.StartTime
-			CurrentEvent.EventId = eventData.StartTime -- Use start time as event ID
+			CurrentEvent.EventId = restoredEventId
 			
 			-- Auto-stop after remaining duration
 			local remaining = eventData.Duration - elapsed
 			task.delay(remaining, function()
-				if CurrentEvent.Active and CurrentEvent.Type == eventData.Type then
+				if CurrentEvent.Active and CurrentEvent.Type == eventData.Type and CurrentEvent.EventId == restoredEventId then
 					CurrentEvent.Active = false
 					CurrentEvent.Type = nil
 					CurrentEvent.EventId = nil
@@ -4750,7 +4763,8 @@ local playerGui = player:WaitForChild("PlayerGui")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local AdminEvent = Remotes:WaitForChild("AdminEvent")
 local EventNotification = Remotes:WaitForChild("EventNotification")
-local EventVFXTrigger = Remotes:WaitForChild("EventVFXTrigger")
+-- EventVFXTrigger reserved for future server-side VFX implementation
+-- local EventVFXTrigger = Remotes:WaitForChild("EventVFXTrigger")
 
 -- [[ ADMIN CHECK ]] --
 local isAdmin = false
