@@ -1,0 +1,112 @@
+================================================================================
+HANGİ DOSYAYI KULLANMALISINIZ?
+================================================================================
+
+ÖNEMLİ! GUNCEL_SCRIPTLER klasöründe 2 set script var:
+
+1. _ORIGINAL.lua dosyaları (Kullanıcının orijinal scriptleri) ✅ BUNLARI KULLAN!
+2. .lua dosyaları (Basit versiyonlar) ❌ BUNLARI KULLANMA!
+
+================================================================================
+KULLANILACAK DOSYALAR (ORIGINAL)
+================================================================================
+
+✅ AdminClient_ORIGINAL.lua
+   - Kullanıcının tam özellikli script'i
+   - 800 satır, 23 KB
+   - TÜM özellikler var
+   - Roblox'ta: StarterPlayerScripts/AdminClient (LocalScript)
+
+✅ AdminManager_ORIGINAL.lua
+   - Kullanıcının tam özellikli script'i
+   - 461 satır, 14 KB
+   - TÜM özellikler var
+   - Roblox'ta: ServerScriptService/Systems/AdminManager (ModuleScript)
+
+✅ EventManager_ORIGINAL.lua
+   - Kullanıcının tam özellikli script'i
+   - 539 satır, 16 KB
+   - TÜM özellikler var
+   - Roblox'ta: ServerScriptService/EventSystem/EventManager (ModuleScript)
+
+================================================================================
+KULLANILMAYACAK DOSYALAR (Basit Versiyonlar)
+================================================================================
+
+❌ AdminClient.lua
+   - Basit versiyon (ben yapmıştım)
+   - Özellikler eksik
+   - KULLANMA!
+
+❌ AdminManager.lua
+   - Basit versiyon (ben yapmıştım)
+   - Özellikler eksik
+   - KULLANMA!
+
+❌ EventManager.lua
+   - Basit versiyon
+   - KULLANMA!
+
+================================================================================
+NEDEN 2 VERSIYON VAR?
+================================================================================
+
+Ben başta kullanıcının orijinal scriptlerini basitleştirmiştim (YANLIŞ!).
+Kullanıcı haklı olarak şikayet etti: "istediğim hiç bir şeyi eklememişsin"
+
+Şimdi:
+- _ORIGINAL.lua = Kullanıcının tam scriptleri (DOĞRU!)
+- .lua = Benim basit versiyonlarım (yedek)
+
+================================================================================
+KURULUM
+================================================================================
+
+Roblox Studio'da:
+
+1. ServerScriptService/Systems/ klasörü oluştur
+2. AdminManager (ModuleScript) oluştur
+3. AdminManager_ORIGINAL.lua içeriğini kopyala
+
+4. EventSystem/ klasörü oluştur
+5. EventManager (ModuleScript) oluştur
+6. EventManager_ORIGINAL.lua içeriğini kopyala
+
+7. StarterPlayer/StarterPlayerScripts/ altına
+8. AdminClient (LocalScript) oluştur
+9. AdminClient_ORIGINAL.lua içeriğini kopyala
+
+10. ReplicatedStorage/Remotes/ altına:
+    - AdminEvent (RemoteEvent)
+    - AdminControlBindable (BindableEvent)
+    - DrinkPotionEvent (RemoteEvent)
+
+11. Admin listesini düzenle (AdminManager içinde):
+    local Admins = {
+        ["SenınIsmin"] = true,
+    }
+
+12. Oyunu başlat!
+
+================================================================================
+TEST
+================================================================================
+
+1. Sol alt köşede 🛡️ buton göreceksin
+2. Tıkla VEYA F2 bas
+3. Panel açılacak
+4. "Statlar" sekmesinde stat verebilirsin
+5. "Events" sekmesinde event başlatabilirsin
+
+Çalışmazsa:
+- TAM_DEGISIKLIK_RAPORU.txt'yi oku (HATA GİDERME bölümü)
+
+================================================================================
+ÖZET
+================================================================================
+
+✅ KULLAN: *_ORIGINAL.lua dosyaları
+❌ KULLANMA: diğer .lua dosyaları
+
+🎯 Kullanıcının orijinal tam scriptleri artık GUNCEL_SCRIPTLER'da!
+================================================================================
