@@ -1,0 +1,99 @@
+DURUMU RAPORU - 05 Şubat 2026 01:23
+
+Kullanıcının İstekleri:
+======================
+1. AdminClient ve AdminManager TAM ÖZELLİKLİ olsun (basit değil!)
+2. Remote isimlerini DEĞİŞTİRME - mevcut kullan
+3. EventVFXTrigger zaten var - kullan
+4. EventLogger ve AntiCheatSystem için remote'ları dahil et
+5. AÇIKLAMA DEĞİL - KOD VER!
+
+Mevcut Durum:
+============
+GUNCEL_SCRIPTLER/ klasöründe:
+- AdminClient.lua (36 KB) - Temel versiyon
+- AdminManager.lua (21 KB) - Temel versiyon
+- EventLogger.lua (11 KB) - Çalışıyor
+- AntiCheatSystem.lua (13 KB) - Çalışıyor
+- DebugConfig.lua (7.5 KB) - Çalışıyor
+- MainInitScript.lua (8 KB) - Çalışıyor
+
+Oyun Yapısı (README_GAME_SCRIPTS.md'den):
+========================================
+Stats (leaderstats):
+- IQ (IntValue)
+- Coins (NumberValue)
+- Essence (NumberValue)
+- Aura (IntValue)
+- RSToken (IntValue)
+- Rebirths (IntValue)
+- EquippedSkill (IntValue)
+
+Potions (PotionInventory):
+- Luck (IntValue)
+- IQ (IntValue)
+- Aura (IntValue)
+- Essence (IntValue)
+- Speed (IntValue)
+
+Multipliers (Attributes):
+- IQMultiplier
+- CoinsMultiplier
+- LuckMultiplier
+- SpeedMultiplier
+- EssenceMultiplier
+- AuraMultiplier
+
+Mevcut Remote'lar (DEĞİŞTİRİLMEYECEK):
+=====================================
+- AdminCommand (RemoteEvent)
+- AdminDataUpdate (RemoteEvent)
+- EventLogUpdate (RemoteEvent) - EventLogger kullanıyor
+- EventVFXTrigger (RemoteEvent) - Zaten var
+
+Gerekli Özellikler:
+=================
+AdminClient_FULL.lua:
+- Event notification UI (üstte, animasyonlu, geri sayım)
+- 6 Sayfa:
+  1. Dashboard (genel bakış)
+  2. Stats (IQ, Coins, Essence, Aura, RSToken, Rebirths yönetimi)
+  3. Potions (5 iksir verme)
+  4. Rot Skills (RSToken verme, EquippedSkill 1-10 ayarlama)
+  5. Events (7 event tetikleme)
+  6. Logs (event log görüntüleme)
+- Dropdown menüler (ESC/dışarı tıklama)
+- F2 + buton toggle
+- Tam validasyon
+
+AdminManager_FULL.lua:
+- 7 Event Sistemi:
+  1. 2x IQ (IQMultiplier 2x)
+  2. 2x Coins (CoinsMultiplier 2x)
+  3. Lucky Hour (LuckMultiplier 2x)
+  4. Speed Frenzy (SpeedMultiplier 2x)
+  5. Golden Rush (EssenceMultiplier 2x)
+  6. Rainbow Stars (AuraMultiplier 2x)
+  7. Essence Rain (EssenceMultiplier 2x + periodic drops)
+- Event yönetimi (başlat, durdur, süre, kalan süre)
+- VFX broadcast (EventVFXTrigger kullanarak)
+- Stat işlemleri (ekle/çıkar/sıfırla - tüm 7 stat)
+- Potion verme (PotionInventory'ye ekle)
+- Rot Skill (RSToken ver, EquippedSkill ayarla 1-10)
+- Rate limiting (10 komut/60 saniye)
+- İşlem geçmişi (son 100 komut)
+- Exploit algılama
+- EventLogger entegrasyonu
+- AntiCheatSystem entegrasyonu
+
+Sonraki Adım:
+============
+AdminClient_FULL.lua ve AdminManager_FULL.lua scriptlerinin tam hallerini
+oluşturmak için mevcut AdminClient.lua ve AdminManager.lua'yı baz alarak
+tüm özellikleri eklemek gerekiyor.
+
+Scriptler ~130 KB (Client) ve ~105 KB (Manager) olacak.
+
+NOT: Bu kadar büyük scriptler single response'da oluşturulamıyor.
+Kullanıcıya mevcut scriptlere özellikleri nasıl ekleyeceğini
+adım adım göstermek veya scriptleri parçalar halinde vermek gerekiyor.
