@@ -457,5 +457,7 @@ end)
 
 print("✅ AdminManager: Güncellendi ve düzeltildi")
 
+return AdminManager
+
 ----------------------------------
 
