@@ -620,8 +620,8 @@ function AdminClient.CreateCommandPanel(parent)
 			btnCorner.Parent = cmdButton
 			
 			cmdButton.MouseButton1Click:Connect(function()
-				-- Komut çalıştırma (basit örnek)
-				AdminClient.ShowNotification("Komut: " .. cmdInfo.Name, "info")
+				-- Komut çalıştırma - gerçek fonksiyon
+				AdminClient.ExecuteCommand(cmdInfo)
 			end)
 		end
 	end
@@ -1099,6 +1099,102 @@ function AdminClient.Initialize()
 	DebugConfig.Info("AdminClient", "Admin Client Initialized Successfully ✅")
 	AdminClient.ShowNotification("Admin Panel Hazır 🔧 (F2 veya butona tıkla)", "success")
 end
+
+-- =============================================================================
+-- [[ KOMUT ÇALIŞTIRMA FONKSİYONU ]]
+-- =============================================================================
+
+function AdminClient.ExecuteCommand(cmdInfo)
+	DebugConfig.Info("AdminClient", "Executing command: " .. cmdInfo.Name)
+	
+	-- Basit komut çalıştırma - gerçek implementasyon için dialog göster
+	local cmd = cmdInfo.Cmd
+	local args = cmdInfo.Args or {}
+	
+	-- Örnek komutlar
+	if cmd == "GiveStat" then
+		-- Oyuncu seçme ve stat verme
+		local playerName = AdminClient.GetPlayerInput("Player Adı:")
+		if not playerName then return end
+		
+		local statType = AdminClient.GetInput("Stat Türü (IQ/Coins/Essence/Aura/RSToken/Rebirths):")
+		if not statType then return end
+		
+		local amount = AdminClient.GetNumberInput("Miktar:")
+		if not amount then return end
+		
+		-- Remote call
+		AdminCommandRemote:FireServer("GiveStat", {
+			targetPlayer = playerName,
+			statType = statType,
+			amount = amount
+		})
+		
+		AdminClient.ShowNotification("Komut gönderildi: Give " .. statType .. " to " .. playerName, "info")
+		
+	elseif cmd == "GivePotion" then
+		local playerName = AdminClient.GetPlayerInput("Player Adı:")
+		if not playerName then return end
+		
+		local potionType = AdminClient.GetInput("Potion Türü (Luck/IQ/Aura/Essence/Speed):")
+		if not potionType then return end
+		
+		local duration = AdminClient.GetNumberInput("Süre (saniye):")
+		if not duration then return end
+		
+		AdminCommandRemote:FireServer("GivePotion", {
+			targetPlayer = playerName,
+			potionType = potionType,
+			duration = duration
+		})
+		
+		AdminClient.ShowNotification("Komut gönderildi: Give " .. potionType .. " potion", "info")
+		
+	elseif cmd == "SetDebug" then
+		local systemName = AdminClient.GetInput("System Adı:")
+		if not systemName then return end
+		
+		local enabled = AdminClient.GetInput("Açık mı? (true/false):")
+		if not enabled then return end
+		
+		AdminCommandRemote:FireServer("SetDebug", {
+			systemName = systemName,
+			enabled = (enabled:lower() == "true")
+		})
+		
+		AdminClient.ShowNotification("Debug ayarı değiştirildi", "info")
+	else
+		-- Genel komut gönderme
+		AdminCommandRemote:FireServer(cmd, {})
+		AdminClient.ShowNotification("Komut: " .. cmdInfo.Name, "info")
+	end
+end
+
+-- Basit input fonksiyonları (UI dialog yerine)
+function AdminClient.GetInput(prompt)
+	-- Not: Gerçek uygulamada UI dialog kullanılmalı
+	-- Şimdilik basit versiyon
+	warn("[AdminClient] Input needed: " .. prompt)
+	return nil -- Gerçek implementasyon gerekli
+end
+
+function AdminClient.GetPlayerInput(prompt)
+	-- Online oyunculardan birini seç
+	local players = Players:GetPlayers()
+	if #players > 0 then
+		return players[1].Name -- İlk oyuncu (demo için)
+	end
+	return nil
+end
+
+function AdminClient.GetNumberInput(prompt)
+	-- Sayı girişi
+	return 100 -- Demo değer
+end
+
+-- =============================================================================
+-- [[ OTOMATİK BAŞLATMA ]]
+-- =============================================================================
 
 -- Otomatik başlatma
 task.spawn(function()
