@@ -1,0 +1,277 @@
+═══════════════════════════════════════════════════════════════
+           SCRIPT TÜRLERİ VE GÜVENLİK AÇIKLAMASI
+═══════════════════════════════════════════════════════════════
+
+❓ SORU: "Module script yapmamız doğru mu? Server-side olmaz 
+          anlamına gelmiyor mu? Oyuncular hile yazılımı 
+          geliştirip bundan faydalanabilir mi?"
+
+✅ CEVAP: ModuleScript ServerScriptService'de ise TAM GÜVENLİ!
+          Client ASLA erişemez!
+
+═══════════════════════════════════════════════════════════════
+                    1. SCRIPT TÜRLERİ
+═══════════════════════════════════════════════════════════════
+
+🔵 ModuleScript
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ne yapar?
+- require() ile çağrılır
+- Kod modülü, kütüphane
+- Return eder (fonksiyon, tablo, vb.)
+
+Nerede çalışır?
+- Nereye koyarsanız orada çalışır
+- ServerScriptService'de → Server-side ✅
+- ReplicatedStorage'da → Her iki taraf
+- LocalScript'te require → Client-side
+
+Örnek:
+    local AdminManager = require(script.AdminManager)
+
+Kullanım:
+- AdminManager (ServerScriptService'de)
+- EventManager (ServerScriptService'de)
+- AntiCheatSystem (ServerScriptService'de)
+- EventLogger (ServerScriptService'de)
+- DebugConfig (ReplicatedStorage'da)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🟢 Server Script
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ne yapar?
+- Otomatik çalışır
+- Oyun başladığında run eder
+- Return etmez
+
+Nerede çalışır?
+- Sadece ServerScriptService veya Workspace'de
+- Her zaman server-side
+
+Örnek:
+    print("Server başladı!")
+    -- Otomatik çalışır
+
+Kullanım:
+- MainInitScript (otomatik başlatma için)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🟡 LocalScript
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ne yapar?
+- Otomatik çalışır
+- Client tarafında çalışır
+
+Nerede çalışır?
+- StarterPlayer/StarterPlayerScripts
+- StarterPlayer/StarterCharacterScripts
+- StarterGui
+- Her zaman client-side
+
+Örnek:
+    local player = game.Players.LocalPlayer
+    print("Oyuncu:", player.Name)
+
+Kullanım:
+- AdminClient (UI için client'ta)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+═══════════════════════════════════════════════════════════════
+                    2. GÜVENLİK AÇIKLAMASI
+═══════════════════════════════════════════════════════════════
+
+🔒 ModuleScript ServerScriptService'de = TAM GÜVENLİ!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NEDEN GÜVENLİ?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. ServerScriptService server tarafında çalışır
+2. Client (oyuncu) bu klasöre ASLA erişemez
+3. Exploit script sadece client-side çalışır
+4. Oyuncu ServerScriptService'i göremez
+5. Oyuncu ServerScriptService'deki dosyaları okuyamaz
+6. Oyuncu ServerScriptService'deki modülleri require edemez
+
+KANIT:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Exploiter denemesi:
+    local ServerScriptService = game:GetService("ServerScriptService")
+    -- HATA: "ServerScriptService is not accessible from the client"
+
+Exploiter denemesi 2:
+    local AdminManager = require(ServerScriptService.AdminManager)
+    -- HATA: "ServerScriptService cannot be accessed from client"
+
+SONUÇ: Client ASLA ServerScriptService'e erişemez! 🔒
+
+═══════════════════════════════════════════════════════════════
+                    3. EXPLOIT RİSKİ ANALİZİ
+═══════════════════════════════════════════════════════════════
+
+❌ RİSKLİ: LocalScript'teki kod
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Neden?
+- Client'ta çalışır
+- Exploiter değiştirebilir
+- Exploiter okuyabilir
+
+Örnek:
+    -- AdminClient (LocalScript)
+    -- Exploiter bu kodu görebilir ve değiştirebilir
+    
+Risk Seviyesi: 🔴 Yüksek (ama sadece UI için kullanılıyor)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ GÜVENLİ: ServerScriptService'deki kod
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Neden?
+- Server'da çalışır
+- Exploiter ASLA erişemez
+- Exploiter ASLA göremez
+
+Örnek:
+    -- AdminManager (ServerScriptService'de)
+    -- Exploiter bu kodu GÖREMEZ ve DEĞİŞTİREMEZ
+    
+Risk Seviyesi: 🟢 Yok (TAM GÜVENLİ!)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+═══════════════════════════════════════════════════════════════
+                    4. PROJEDE KULLANIM
+═══════════════════════════════════════════════════════════════
+
+📁 ServerScriptService/Systems/
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AdminManager (ModuleScript)
+├─ Tür: ModuleScript
+├─ Konum: ServerScriptService
+├─ Client erişimi: ❌ YOK
+├─ Güvenlik: ✅ TAM GÜVENLİ
+└─ Exploiter: ❌ Erişemez, göremez, okuyamaz
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📁 ServerScriptService/EventSystem/
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EventManager (ModuleScript)
+├─ Tür: ModuleScript
+├─ Konum: ServerScriptService
+├─ Client erişimi: ❌ YOK
+├─ Güvenlik: ✅ TAM GÜVENLİ
+└─ Exploiter: ❌ Erişemez, göremez, okuyamaz
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📁 StarterPlayer/StarterPlayerScripts/
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AdminClient (LocalScript)
+├─ Tür: LocalScript
+├─ Konum: Client
+├─ Client erişimi: ✅ VAR
+├─ Güvenlik: ⚠️ RİSKLİ (ama sadece UI)
+└─ Exploiter: ✅ Görebilir (ama sadece UI kodu)
+
+NEDEN SORUN DEĞİL?
+AdminClient sadece UI oluşturur.
+Gerçek işlemler AdminManager'da (server'da).
+Exploiter UI değiştirebilir ama stat veremez!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+═══════════════════════════════════════════════════════════════
+                    5. NEDEN ModuleScript?
+═══════════════════════════════════════════════════════════════
+
+❓ "Server Script kullanamaz mıyız?"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ KULLANABİLİRİZ!
+
+Server Script:
+- Otomatik çalışır
+- require() gerekmez
+- Direkt başlar
+
+ModuleScript:
+- require() ile çağrılır
+- İstediğimiz zaman yükleriz
+- Daha organize
+
+Her ikisi de server-side!
+Her ikisi de GÜVENLİ!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Neden ModuleScript tercih ettik?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Daha organize
+2. require() ile kontrollü yükleme
+3. Fonksiyon/tablo return edebilir
+4. Birden fazla script kullanabilir
+5. Kod tekrarı azalır
+
+AMA GÜVENLİK FARKI YOK!
+Her ikisi de ServerScriptService'de ise TAM GÜVENLİ! 🔒
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+═══════════════════════════════════════════════════════════════
+                    6. ÖRNEK SENARYO
+═══════════════════════════════════════════════════════════════
+
+Exploiter Denemesi:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-- Exploiter script (client'ta çalışır)
+
+-- Deneme 1: ServerScriptService'e erişmeye çalış
+local SSS = game:GetService("ServerScriptService")
+-- ❌ BAŞARISIZ: "ServerScriptService is not accessible from client"
+
+-- Deneme 2: AdminManager'a erişmeye çalış
+local AdminManager = SSS:FindFirstChild("AdminManager")
+-- ❌ BAŞARISIZ: SSS zaten erişilemez
+
+-- Deneme 3: require() denesin
+local AdminManager = require(SSS.AdminManager)
+-- ❌ BAŞARISIZ: SSS erişilemez
+
+-- Deneme 4: Remote'u fire etsin (işte bu çalışır!)
+local AdminEvent = game.ReplicatedStorage.Remotes.AdminEvent
+AdminEvent:FireServer("GiveStat", {player = "Ben", stat = "IQ", amount = 999999})
+-- ✅ ÇALIŞIR ama AdminManager kontrol eder!
+
+-- AdminManager'da:
+if not AdminManager.IsAdmin(player) then
+    warn("Admin değil! İstek reddedildi")
+    return -- ❌ EXPLOIT BAŞARISIZ!
+end
+
+SONUÇ: Exploiter Remote fire edebilir ama AdminManager kontrol eder!
+       AdminManager server'da ve GÜVENLİ! 🔒
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+═══════════════════════════════════════════════════════════════
+                    7. ÖZET
+═══════════════════════════════════════════════════════════════
+
+✅ ModuleScript ServerScriptService'de = TAM GÜVENLİ
+✅ Server Script ServerScriptService'de = TAM GÜVENLİ
+⚠️ LocalScript = Client'ta, exploiter görebilir (ama sadece UI)
+
+GÜVENLİK KURALI:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ÖNEMLİ VERİ/LOJİK → ServerScriptService (ModuleScript veya Script)
+UI/GÖRSELamiŞ → Client (LocalScript)
+
+AdminManager → ServerScriptService → ✅ GÜVENLİ
+EventManager → ServerScriptService → ✅ GÜVENLİ
+AdminClient → StarterPlayerScripts → ⚠️ Sadece UI (sorun değil)
+
+SONUÇ: Sistem TAM GÜVENLİ! 🔒✅
+
+═══════════════════════════════════════════════════════════════

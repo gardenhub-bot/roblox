@@ -13,7 +13,29 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local AdminEvent = Remotes:WaitForChild("AdminEvent")
 
 local ScreenGui = script.Parent
-local OpenBtn = ScreenGui:WaitForChild("OpenBtn")
+
+-- OpenBtn oluştur (yoksa)
+local OpenBtn = ScreenGui:FindFirstChild("OpenBtn")
+if not OpenBtn then
+	OpenBtn = Instance.new("TextButton")
+	OpenBtn.Name = "OpenBtn"
+	OpenBtn.Text = "🛡️"
+	OpenBtn.Size = UDim2.new(0, 50, 0, 50)
+	OpenBtn.Position = UDim2.new(0, 10, 1, -60)
+	OpenBtn.AnchorPoint = Vector2.new(0, 1)
+	OpenBtn.BackgroundColor3 = Color3.fromRGB(41, 41, 41)
+	OpenBtn.BorderSizePixel = 2
+	OpenBtn.BorderColor3 = Color3.fromRGB(0, 170, 255)
+	OpenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	OpenBtn.Font = Enum.Font.GothamBold
+	OpenBtn.TextSize = 24
+	OpenBtn.Parent = ScreenGui
+	
+	-- Corner için UICorner
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = OpenBtn
+end
 
 -- ✅ AÇIK DROPDOWN TAKİBİ
 local openDropdowns = {}
