@@ -1,1250 +1,803 @@
--- AdminClient.lua
--- Konum: StarterPlayer -> StarterPlayerScripts
--- İstemci Tarafı Admin UI ve Yönetim Sistemi
+-- AdminClient (Tam hali - görsel sorunlar düzeltildi)
 
-local AdminClient = {}
-
--- Servisler
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
--- Modüller
 local Modules = ReplicatedStorage:WaitForChild("Modules")
-local DebugConfig = require(Modules:WaitForChild("DebugConfig"))
+local GameConfig = require(Modules:WaitForChild("GameConfig"))
+local InventoryConfig = require(Modules:WaitForChild("InventoryConfig"))
 
--- Remotes
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local AdminCommandRemote = Remotes:WaitForChild("AdminCommand")
-local AdminDataRemote = Remotes:WaitForChild("AdminDataUpdate")
-local EventLogRemote = Remotes:WaitForChild("EventLogUpdate")
+local AdminEvent = Remotes:WaitForChild("AdminEvent")
 
--- =============================================================================
--- [[ UI AYARLARI ]]
--- =============================================================================
+local ScreenGui = script.Parent
+local OpenBtn = ScreenGui:WaitForChild("OpenBtn")
 
-AdminClient.Config = {
-	-- UI Ayarları
-	UIScale = 1,
-	Theme = {
-		Background = Color3.fromRGB(30, 30, 40),
-		Panel = Color3.fromRGB(40, 40, 50),
-		Accent = Color3.fromRGB(100, 150, 255),
-		Success = Color3.fromRGB(100, 255, 150),
-		Warning = Color3.fromRGB(255, 200, 50),
-		Error = Color3.fromRGB(255, 100, 100),
-		Text = Color3.fromRGB(255, 255, 255),
-		TextSecondary = Color3.fromRGB(200, 200, 200),
-	},
-	
-	-- Klavye Kısayolu
-	ToggleKey = Enum.KeyCode.F2, -- F2 ile panel aç/kapa
-	
-	-- Event Log Ayarları
-	MaxDisplayedEvents = 100,
-	AutoScroll = true,
-	
-	-- Bildirim Ayarları
-	ShowNotifications = true,
-	NotificationDuration = 3,
-}
+-- ✅ AÇIK DROPDOWN TAKİBİ
+local openDropdowns = {}
+local activeDropdown = nil
 
--- =============================================================================
--- [[ UI DURUM ]]
--- =============================================================================
+local function CloseAllDropdowns()
+	for _, dropdownInfo in pairs(openDropdowns) do
+		if dropdownInfo and dropdownInfo.list and dropdownInfo.list.Parent then
+			dropdownInfo.list.Visible = false
+			if dropdownInfo.arrow then
+				dropdownInfo.arrow.Rotation = 0
+			end
+		end
+	end
+	openDropdowns = {}
+	activeDropdown = nil
+end
 
-local IsAdmin = false
-local UIVisible = false
-local CurrentTab = "Dashboard"
-local EventLog = {}
-local SystemStatus = {}
+-- ✅ DIŞARI TIKLANDIĞINDA DROPDOWN KAPAT
+local function SetupDropdownClickAway()
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then return end
 
--- =============================================================================
--- [[ UI OLUŞTURMA ]]
--- =============================================================================
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			local mousePos = UserInputService:GetMouseLocation()
+			local shouldClose = true
 
-local ScreenGui
-local ToggleButtonGui
-local MainFrame
-local EventLogFrame
-local DashboardFrame
-local CommandFrame
-local DebugFrame
+			-- Açık dropdown'larda tıklanıp tıklanmadığını kontrol et
+			for _, dropdownInfo in pairs(openDropdowns) do
+				if dropdownInfo.frame and dropdownInfo.frame:IsDescendantOf(game) then
+					local absolutePosition = dropdownInfo.frame.AbsolutePosition
+					local absoluteSize = dropdownInfo.frame.AbsoluteSize
 
-local function CreateScreenGui()
-	-- Ana ScreenGui (Panel için)
-	ScreenGui = Instance.new("ScreenGui")
-	ScreenGui.Name = "AdminPanel"
-	ScreenGui.ResetOnSpawn = false
-	ScreenGui.DisplayOrder = 100
-	ScreenGui.Enabled = false
-	ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-	
-	-- Ana Frame
-	MainFrame = Instance.new("Frame")
-	MainFrame.Name = "MainFrame"
-	MainFrame.Size = UDim2.new(0.8, 0, 0.8, 0)
-	MainFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
-	MainFrame.BackgroundColor3 = AdminClient.Config.Theme.Background
-	MainFrame.BackgroundTransparency = 0 -- Tam opak
-	MainFrame.BorderSizePixel = 0
-	MainFrame.Parent = ScreenGui
-	
-	-- Corner
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = MainFrame
-	
-	-- Stroke (Kenarlık)
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = AdminClient.Config.Theme.Accent
+					if mousePos.X >= absolutePosition.X and mousePos.X <= absolutePosition.X + absoluteSize.X and
+						mousePos.Y >= absolutePosition.Y and mousePos.Y <= absolutePosition.Y + absoluteSize.Y then
+						shouldClose = false
+						break
+					end
+
+					-- Dropdown listesini kontrol et
+					if dropdownInfo.list and dropdownInfo.list.Visible then
+						local listPos = dropdownInfo.list.AbsolutePosition
+						local listSize = dropdownInfo.list.AbsoluteSize
+
+						if mousePos.X >= listPos.X and mousePos.X <= listPos.X + listSize.X and
+							mousePos.Y >= listPos.Y and mousePos.Y <= listPos.Y + listSize.Y then
+							shouldClose = false
+							break
+						end
+					end
+				end
+			end
+
+			if shouldClose then
+				CloseAllDropdowns()
+			end
+		end
+	end)
+end
+
+SetupDropdownClickAway()
+
+-- ✅ ANA PANEL
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "AdminPanel_Final"
+MainFrame.Size = UDim2.new(0.7, 0, 0.8, 0)
+MainFrame.Position = UDim2.new(0.15, 0, 0.1, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainFrame.BackgroundTransparency = 0.05
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false
+MainFrame.ClipsDescendants = true
+MainFrame.ZIndex = 1000
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner", MainFrame)
+UICorner.CornerRadius = UDim.new(0, 15)
+
+local UIGradient = Instance.new("UIGradient")
+UIGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 30)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 40))
+})
+UIGradient.Rotation = 45
+UIGradient.Parent = MainFrame
+
+-- ✅ SIDEBAR
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Size = UDim2.new(0.22, 0, 1, 0)
+Sidebar.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+Sidebar.BackgroundTransparency = 0.05
+Sidebar.BorderSizePixel = 0
+Sidebar.ZIndex = 1001
+Sidebar.Parent = MainFrame
+
+local SidebarCorner = Instance.new("UICorner", Sidebar)
+SidebarCorner.CornerRadius = UDim.new(0, 15, 0, 0)
+
+local TabList = Instance.new("UIListLayout", Sidebar)
+TabList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+TabList.Padding = UDim.new(0, 12)
+TabList.SortOrder = Enum.SortOrder.LayoutOrder
+
+local SidebarPadding = Instance.new("UIPadding", Sidebar)
+SidebarPadding.PaddingTop = UDim.new(0, 10)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 70)
+Title.BackgroundTransparency = 1
+Title.Text = "🛡️ ADMIN PANEL"
+Title.TextColor3 = Color3.fromRGB(255, 170, 0)
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 24
+Title.TextStrokeTransparency = 0.3
+Title.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+Title.ZIndex = 1002
+Title.Parent = Sidebar
+
+-- ✅ CONTENT ALANI
+local Content = Instance.new("Frame")
+Content.Name = "Content"
+Content.Size = UDim2.new(0.78, 0, 1, 0)
+Content.Position = UDim2.new(0.22, 0, 0, 0)
+Content.BackgroundTransparency = 1
+Content.ZIndex = 1001
+Content.Parent = MainFrame
+
+local ContentCorner = Instance.new("UICorner", Content)
+ContentCorner.CornerRadius = UDim.new(0, 0, 15, 0)
+
+local Pages = {} 
+local CurrentPage = nil
+local CurrentTabButton = nil
+
+-- ✅ MODERN TAB BUTTON
+function CreateTabButton(name, icon, pageFrame)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.9, 0, 0, 50)
+	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+	btn.BackgroundTransparency = 0.2
+	btn.Text = icon .. "  " .. name
+	btn.TextColor3 = Color3.fromRGB(240, 240, 240)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 16
+	btn.TextXAlignment = Enum.TextXAlignment.Left
+	btn.ZIndex = 1002
+	btn.Parent = Sidebar
+
+	local pad = Instance.new("UIPadding", btn)
+	pad.PaddingLeft = UDim.new(0, 20)
+
+	local corner = Instance.new("UICorner", btn)
+	corner.CornerRadius = UDim.new(0, 8)
+
+	local stroke = Instance.new("UIStroke", btn)
+	stroke.Color = Color3.fromRGB(70, 70, 80)
 	stroke.Thickness = 2
-	stroke.Transparency = 0.5
-	stroke.Parent = MainFrame
-	
-	-- Shadow (Gölge efekti için) - Daha güzel gölge
-	local shadow = Instance.new("Frame")
-	shadow.Name = "Shadow"
-	shadow.Size = UDim2.new(1, 30, 1, 30)
-	shadow.Position = UDim2.new(0, -15, 0, -15)
-	shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	shadow.BackgroundTransparency = 0.8
-	shadow.BorderSizePixel = 0
-	shadow.ZIndex = -1
-	shadow.Parent = MainFrame
-	
-	local shadowCorner = Instance.new("UICorner")
-	shadowCorner.CornerRadius = UDim.new(0, 15)
-	shadowCorner.Parent = shadow
-	
-	-- Başlık
-	local titleBar = Instance.new("Frame")
-	titleBar.Name = "TitleBar"
-	titleBar.Size = UDim2.new(1, 0, 0, 50)
-	titleBar.BackgroundColor3 = AdminClient.Config.Theme.Panel
-	titleBar.BackgroundTransparency = 0 -- Tam opak
-	titleBar.BorderSizePixel = 0
-	titleBar.Parent = MainFrame
-	
-	local titleCorner = Instance.new("UICorner")
-	titleCorner.CornerRadius = UDim.new(0, 12)
-	titleCorner.Parent = titleBar
-	
-	-- Title bar alt sınır (tab bar ile ayrım için)
-	local titleSeparator = Instance.new("Frame")
-	titleSeparator.Name = "Separator"
-	titleSeparator.Size = UDim2.new(1, 0, 0, 2)
-	titleSeparator.Position = UDim2.new(0, 0, 1, 0)
-	titleSeparator.BackgroundColor3 = AdminClient.Config.Theme.Accent
-	titleSeparator.BackgroundTransparency = 0.5
-	titleSeparator.BorderSizePixel = 0
-	titleSeparator.Parent = titleBar
-	
-	local title = Instance.new("TextLabel")
-	title.Name = "Title"
-	title.Size = UDim2.new(0.7, 0, 1, 0)
-	title.Position = UDim2.new(0.02, 0, 0, 0)
-	title.BackgroundTransparency = 1
-	title.Text = "🔧 Admin Panel"
-	title.TextColor3 = AdminClient.Config.Theme.Text
-	title.TextSize = 24
-	title.Font = Enum.Font.GothamBold
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.Parent = titleBar
-	
-	-- Kapat butonu
-	local closeButton = Instance.new("TextButton")
-	closeButton.Name = "CloseButton"
-	closeButton.Size = UDim2.new(0, 40, 0, 40)
-	closeButton.Position = UDim2.new(1, -45, 0, 5)
-	closeButton.BackgroundColor3 = AdminClient.Config.Theme.Error
-	closeButton.Text = "✕"
-	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	closeButton.TextSize = 20
-	closeButton.Font = Enum.Font.GothamBold
-	closeButton.Parent = titleBar
-	
-	local closeCorner = Instance.new("UICorner")
-	closeCorner.CornerRadius = UDim.new(0, 8)
-	closeCorner.Parent = closeButton
-	
-	closeButton.MouseButton1Click:Connect(function()
-		AdminClient.ToggleUI()
+	stroke.ZIndex = 1003
+
+	btn.MouseEnter:Connect(function()
+		if CurrentTabButton ~= btn then
+			TweenService:Create(btn, TweenInfo.new(0.2), {
+				BackgroundTransparency = 0.1,
+				BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+			}):Play()
+		end
 	end)
-	
-	-- Tab Butonları
-	local tabBar = Instance.new("Frame")
-	tabBar.Name = "TabBar"
-	tabBar.Size = UDim2.new(1, 0, 0, 45)
-	tabBar.Position = UDim2.new(0, 0, 0, 55)
-	tabBar.BackgroundColor3 = AdminClient.Config.Theme.Panel
-	tabBar.BackgroundTransparency = 0 -- Tam opak
-	tabBar.BorderSizePixel = 0
-	tabBar.Parent = MainFrame
-	
-	local tabLayout = Instance.new("UIListLayout")
-	tabLayout.FillDirection = Enum.FillDirection.Horizontal
-	tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	tabLayout.Padding = UDim.new(0, 8)
-	tabLayout.Parent = tabBar
-	
-	local tabPadding = Instance.new("UIPadding")
-	tabPadding.PaddingLeft = UDim.new(0, 10)
-	tabPadding.PaddingRight = UDim.new(0, 10)
-	tabPadding.PaddingTop = UDim.new(0, 5)
-	tabPadding.PaddingBottom = UDim.new(0, 5)
-	tabPadding.Parent = tabBar
-	
-	local tabs = {"Dashboard", "Events", "Commands", "Debug"}
-	for _, tabName in ipairs(tabs) do
-		local tabButton = Instance.new("TextButton")
-		tabButton.Name = tabName .. "Tab"
-		tabButton.Size = UDim2.new(0.2, -10, 1, -10)
-		tabButton.BackgroundColor3 = AdminClient.Config.Theme.Accent
-		tabButton.BackgroundTransparency = 0 -- Tam opak
-		tabButton.BorderSizePixel = 0
-		tabButton.Text = tabName
-		tabButton.TextColor3 = AdminClient.Config.Theme.Text
-		tabButton.TextSize = 16
-		tabButton.Font = Enum.Font.GothamBold
-		tabButton.Parent = tabBar
-		
-		local tabCorner = Instance.new("UICorner")
-		tabCorner.CornerRadius = UDim.new(0, 8)
-		tabCorner.Parent = tabButton
-		
-		-- Hover effect
-		tabButton.MouseEnter:Connect(function()
-			if CurrentTab ~= tabName then
-				tabButton.BackgroundColor3 = Color3.fromRGB(120, 170, 255)
-			end
-		end)
-		
-		tabButton.MouseLeave:Connect(function()
-			if CurrentTab ~= tabName then
-				tabButton.BackgroundColor3 = AdminClient.Config.Theme.Accent
-			end
-		end)
-		
-		tabButton.MouseButton1Click:Connect(function()
-			AdminClient.SwitchTab(tabName)
-		end)
-	end
-	
-	-- İçerik Alanı
-	local contentFrame = Instance.new("Frame")
-	contentFrame.Name = "ContentFrame"
-	contentFrame.Size = UDim2.new(1, -20, 1, -120)
-	contentFrame.Position = UDim2.new(0, 10, 0, 110)
-	contentFrame.BackgroundTransparency = 1
-	contentFrame.BorderSizePixel = 0
-	contentFrame.Parent = MainFrame
-	
-	-- Dashboard Frame
-	DashboardFrame = AdminClient.CreateDashboard(contentFrame)
-	
-	-- Event Log Frame
-	EventLogFrame = AdminClient.CreateEventLog(contentFrame)
-	
-	-- Command Frame
-	CommandFrame = AdminClient.CreateCommandPanel(contentFrame)
-	
-	-- Debug Frame
-	DebugFrame = AdminClient.CreateDebugPanel(contentFrame)
-	
-	-- İlk tab'ı göster
-	AdminClient.SwitchTab("Dashboard")
-	
-	DebugConfig.Info("AdminClient", "UI Created Successfully")
+
+	btn.MouseLeave:Connect(function()
+		if CurrentTabButton ~= btn then
+			TweenService:Create(btn, TweenInfo.new(0.2), {
+				BackgroundTransparency = 0.2,
+				BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+			}):Play()
+		end
+	end)
+
+	btn.MouseButton1Click:Connect(function()
+		-- Tüm dropdown'ları kapat
+		CloseAllDropdowns()
+
+		-- Tüm sayfaları gizle
+		for _, p in pairs(Pages) do 
+			p.Visible = false 
+		end
+
+		-- Yeni sayfayı göster
+		pageFrame.Visible = true
+		CurrentPage = pageFrame
+
+		-- Önceki tab butonunu sıfırla
+		if CurrentTabButton then
+			TweenService:Create(CurrentTabButton, TweenInfo.new(0.2), {
+				BackgroundColor3 = Color3.fromRGB(40, 40, 45),
+				BackgroundTransparency = 0.2,
+				TextColor3 = Color3.fromRGB(240, 240, 240)
+			}):Play()
+			CurrentTabButton.UIStroke.Color = Color3.fromRGB(70, 70, 80)
+		end
+
+		-- Yeni tab butonunu aktif yap
+		CurrentTabButton = btn
+		TweenService:Create(btn, TweenInfo.new(0.2), {
+			BackgroundColor3 = Color3.fromRGB(255, 170, 0),
+			BackgroundTransparency = 0,
+			TextColor3 = Color3.fromRGB(25, 25, 30)
+		}):Play()
+		btn.UIStroke.Color = Color3.fromRGB(255, 200, 100)
+	end)
+
+	return btn
 end
 
-local function CreateToggleButton()
-	-- Ayrı ScreenGui (Toggle Button için - Her zaman görünür)
-	ToggleButtonGui = Instance.new("ScreenGui")
-	ToggleButtonGui.Name = "AdminToggleButton"
-	ToggleButtonGui.ResetOnSpawn = false
-	ToggleButtonGui.DisplayOrder = 999
-	ToggleButtonGui.Enabled = true -- Her zaman görünür
-	ToggleButtonGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-	
-	-- Floating Toggle Button
-	local toggleButton = Instance.new("TextButton")
-	toggleButton.Name = "ToggleButton"
-	toggleButton.Size = UDim2.new(0, 60, 0, 60)
-	toggleButton.Position = UDim2.new(1, -80, 1, -80)
-	toggleButton.AnchorPoint = Vector2.new(0, 0)
-	toggleButton.BackgroundColor3 = AdminClient.Config.Theme.Accent
-	toggleButton.Text = "🔧"
-	toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	toggleButton.TextSize = 32
-	toggleButton.Font = Enum.Font.GothamBold
-	toggleButton.ZIndex = 1000
-	toggleButton.BorderSizePixel = 0
-	toggleButton.Parent = ToggleButtonGui
-	
-	local toggleCorner = Instance.new("UICorner")
-	toggleCorner.CornerRadius = UDim.new(0.5, 0) -- Circular
-	toggleCorner.Parent = toggleButton
-	
-	-- Button shadow
-	local buttonShadow = Instance.new("ImageLabel")
-	buttonShadow.Name = "Shadow"
-	buttonShadow.Size = UDim2.new(1, 20, 1, 20)
-	buttonShadow.Position = UDim2.new(0, -10, 0, -10)
-	buttonShadow.BackgroundTransparency = 1
-	buttonShadow.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
-	buttonShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-	buttonShadow.ImageTransparency = 0.7
-	buttonShadow.ScaleType = Enum.ScaleType.Slice
-	buttonShadow.SliceCenter = Rect.new(20, 20, 80, 80)
-	buttonShadow.ZIndex = 999
-	buttonShadow.Parent = toggleButton
-	
-	-- Button click handler
-	toggleButton.MouseButton1Click:Connect(function()
-		-- Click animation
-		local originalSize = toggleButton.Size
-		toggleButton:TweenSize(
-			UDim2.new(0, 55, 0, 55),
-			Enum.EasingDirection.Out,
-			Enum.EasingStyle.Back,
-			0.1,
-			true,
-			function()
-				toggleButton:TweenSize(
-					originalSize,
-					Enum.EasingDirection.Out,
-					Enum.EasingStyle.Back,
-					0.1,
-					true
-				)
-			end
-		)
-		
-		AdminClient.ToggleUI()
-	end)
-	
-	-- Hover effects
-	toggleButton.MouseEnter:Connect(function()
-		local tween = TweenService:Create(
-			toggleButton,
-			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{BackgroundColor3 = Color3.fromRGB(120, 170, 255)}
-		)
-		tween:Play()
-	end)
-	
-	toggleButton.MouseLeave:Connect(function()
-		local tween = TweenService:Create(
-			toggleButton,
-			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{BackgroundColor3 = AdminClient.Config.Theme.Accent}
-		)
-		tween:Play()
-	end)
-	
-	DebugConfig.Info("AdminClient", "Toggle Button Created Successfully")
-end
+-- ✅ MODERN PAGE
+function CreatePage(name)
+	local page = Instance.new("ScrollingFrame")
+	page.Name = name
+	page.Size = UDim2.new(1, -20, 1, -20)
+	page.Position = UDim2.new(0, 10, 0, 10)
+	page.BackgroundTransparency = 1
+	page.ScrollBarThickness = 6
+	page.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+	page.ScrollBarImageTransparency = 0.5
+	page.BorderSizePixel = 0
+	page.Visible = false
+	page.ZIndex = 1002
+	page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	page.Parent = Content
+
+	local list = Instance.new("UIListLayout", page)
+	list.Padding = UDim.new(0, 15)
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+
+	table.insert(Pages, page)
+	return page
 end
 
--- =============================================================================
--- [[ DASHBOARD OLUŞTURMA ]]
--- =============================================================================
-
-function AdminClient.CreateDashboard(parent)
+-- ✅ MODERN SECTION
+function AddSectionTitle(page, text)
 	local frame = Instance.new("Frame")
-	frame.Name = "Dashboard"
-	frame.Size = UDim2.new(1, 0, 1, 0)
+	frame.Size = UDim2.new(1, 0, 0, 45)
 	frame.BackgroundTransparency = 1
-	frame.Visible = false
-	frame.Parent = parent
-	
-	-- Sistem Durumu Kartları
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Vertical
-	layout.Padding = UDim.new(0, 10)
-	layout.Parent = frame
-	
-	-- Durum Kartları için Container
-	local statusCards = Instance.new("Frame")
-	statusCards.Name = "StatusCards"
-	statusCards.Size = UDim2.new(1, 0, 0, 200)
-	statusCards.BackgroundTransparency = 1
-	statusCards.Parent = frame
-	
-	local cardLayout = Instance.new("UIGridLayout")
-	cardLayout.CellSize = UDim2.new(0.48, 0, 0, 90)
-	cardLayout.CellPadding = UDim2.new(0.02, 0, 0, 10)
-	cardLayout.Parent = statusCards
-	
-	-- Durum Bilgileri
-	local statusInfo = {
-		{Name = "Debug System", Value = "Enabled", Icon = "🐛"},
-		{Name = "Anti-Cheat", Value = "Active", Icon = "🛡️"},
-		{Name = "Event Logger", Value = "Running", Icon = "📋"},
-		{Name = "Server Status", Value = "Online", Icon = "🌐"},
+	frame.ZIndex = 1003
+	frame.Parent = page
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, 0, 1, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = "📌 " .. text
+	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lbl.Font = Enum.Font.GothamBlack
+	lbl.TextSize = 20
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.TextStrokeTransparency = 0.3
+	lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	lbl.ZIndex = 1004
+	lbl.Parent = frame
+
+	local line = Instance.new("Frame")
+	line.Size = UDim2.new(1, 0, 0, 2)
+	line.Position = UDim2.new(0, 0, 1, -2)
+	line.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+	line.BorderSizePixel = 0
+	line.ZIndex = 1004
+	line.Parent = frame
+
+	return frame
+end
+
+-- ✅ MODERN INPUT
+function AddInput(page, placeholder, defaultValue)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, 0, 0, 50)
+	frame.BackgroundTransparency = 1
+	frame.ZIndex = 1003
+	frame.Parent = page
+
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(1, 0, 1, 0)
+	box.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+	box.BackgroundTransparency = 0.1
+	box.PlaceholderText = placeholder
+	box.Text = defaultValue or ""
+	box.TextColor3 = Color3.fromRGB(255, 255, 255)
+	box.Font = Enum.Font.GothamBold
+	box.TextSize = 14
+	box.PlaceholderColor3 = Color3.fromRGB(160, 160, 160)
+	box.ClearTextOnFocus = false
+	box.ZIndex = 1004
+	box.Parent = frame
+
+	local corner = Instance.new("UICorner", box)
+	corner.CornerRadius = UDim.new(0, 8)
+
+	local stroke = Instance.new("UIStroke", box)
+	stroke.Color = Color3.fromRGB(80, 80, 90)
+	stroke.Thickness = 2
+	stroke.ZIndex = 1004
+
+	box.Focused:Connect(function()
+		TweenService:Create(box, TweenInfo.new(0.2), {
+			BackgroundTransparency = 0,
+			BackgroundColor3 = Color3.fromRGB(55, 55, 60)
+		}):Play()
+		TweenService:Create(box.UIStroke, TweenInfo.new(0.2), {
+			Color = Color3.fromRGB(255, 170, 0)
+		}):Play()
+	end)
+
+	box.FocusLost:Connect(function()
+		TweenService:Create(box, TweenInfo.new(0.2), {
+			BackgroundTransparency = 0.1,
+			BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+		}):Play()
+		TweenService:Create(box.UIStroke, TweenInfo.new(0.2), {
+			Color = Color3.fromRGB(80, 80, 90)
+		}):Play()
+	end)
+
+	return box
+end
+
+-- ✅ MODERN DROPDOWN
+function AddDropdown(page, options, defaultText)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, 0, 0, 50)
+	frame.BackgroundTransparency = 1
+	frame.ZIndex = 1003
+	frame.Parent = page
+
+	local mainBtn = Instance.new("TextButton")
+	mainBtn.Size = UDim2.new(1, 0, 1, 0)
+	mainBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+	mainBtn.BackgroundTransparency = 0.1
+	mainBtn.Text = defaultText
+	mainBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	mainBtn.Font = Enum.Font.GothamBold
+	mainBtn.TextSize = 14
+	mainBtn.ZIndex = 1004
+	mainBtn.Parent = frame
+
+	local corner = Instance.new("UICorner", mainBtn)
+	corner.CornerRadius = UDim.new(0, 8)
+
+	local stroke = Instance.new("UIStroke", mainBtn)
+	stroke.Color = Color3.fromRGB(80, 80, 90)
+	stroke.Thickness = 2
+	stroke.ZIndex = 1004
+
+	local arrow = Instance.new("ImageLabel")
+	arrow.Size = UDim2.new(0, 20, 0, 20)
+	arrow.Position = UDim2.new(1, -25, 0.5, -10)
+	arrow.BackgroundTransparency = 1
+	arrow.Image = "rbxassetid://6031090990"
+	arrow.ImageColor3 = Color3.fromRGB(200, 200, 200)
+	arrow.ZIndex = 1005
+	arrow.Parent = mainBtn
+
+	local list = Instance.new("Frame")
+	list.Visible = false
+	list.Size = UDim2.new(1, 0, 0, math.min(#options * 45, 200))
+	list.Position = UDim2.new(0, 0, 1, 5)
+	list.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+	list.BackgroundTransparency = 0
+	list.ZIndex = 1006
+	list.Parent = frame
+
+	local corner2 = Instance.new("UICorner", list)
+	corner2.CornerRadius = UDim.new(0, 8)
+
+	local stroke2 = Instance.new("UIStroke", list)
+	stroke2.Color = Color3.fromRGB(60, 60, 70)
+	stroke2.Thickness = 2
+	stroke2.ZIndex = 1006
+
+	local ll = Instance.new("UIListLayout", list)
+	ll.Padding = UDim.new(0, 2)
+
+	local padding = Instance.new("UIPadding", list)
+	padding.PaddingTop = UDim.new(0, 5)
+	padding.PaddingBottom = UDim.new(0, 5)
+	padding.PaddingLeft = UDim.new(0, 5)
+	padding.PaddingRight = UDim.new(0, 5)
+
+	local selected = nil
+
+	-- Dropdown bilgisini kaydet
+	local dropdownInfo = {
+		frame = frame,
+		list = list,
+		arrow = arrow,
+		mainBtn = mainBtn
 	}
-	
-	for _, info in ipairs(statusInfo) do
-		local card = Instance.new("Frame")
-		card.Name = info.Name
-		card.BackgroundColor3 = AdminClient.Config.Theme.Panel
-		card.BorderSizePixel = 0
-		card.Parent = statusCards
-		
-		local cardCorner = Instance.new("UICorner")
-		cardCorner.CornerRadius = UDim.new(0, 8)
-		cardCorner.Parent = card
-		
-		local icon = Instance.new("TextLabel")
-		icon.Size = UDim2.new(0, 40, 0, 40)
-		icon.Position = UDim2.new(0, 10, 0, 10)
-		icon.BackgroundTransparency = 1
-		icon.Text = info.Icon
-		icon.TextSize = 32
-		icon.Parent = card
-		
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(1, -60, 0, 20)
-		nameLabel.Position = UDim2.new(0, 60, 0, 10)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.Text = info.Name
-		nameLabel.TextColor3 = AdminClient.Config.Theme.TextSecondary
-		nameLabel.TextSize = 14
-		nameLabel.Font = Enum.Font.Gotham
-		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.Parent = card
-		
-		local valueLabel = Instance.new("TextLabel")
-		valueLabel.Name = "Value"
-		valueLabel.Size = UDim2.new(1, -60, 0, 30)
-		valueLabel.Position = UDim2.new(0, 60, 0, 35)
-		valueLabel.BackgroundTransparency = 1
-		valueLabel.Text = info.Value
-		valueLabel.TextColor3 = AdminClient.Config.Theme.Success
-		valueLabel.TextSize = 18
-		valueLabel.Font = Enum.Font.GothamBold
-		valueLabel.TextXAlignment = Enum.TextXAlignment.Left
-		valueLabel.Parent = card
-	end
-	
-	-- Aktif Oyuncular Listesi
-	local playersTitle = Instance.new("TextLabel")
-	playersTitle.Size = UDim2.new(1, 0, 0, 30)
-	playersTitle.Position = UDim2.new(0, 0, 0, 220)
-	playersTitle.BackgroundTransparency = 1
-	playersTitle.Text = "👥 Aktif Oyuncular"
-	playersTitle.TextColor3 = AdminClient.Config.Theme.Text
-	playersTitle.TextSize = 20
-	playersTitle.Font = Enum.Font.GothamBold
-	playersTitle.TextXAlignment = Enum.TextXAlignment.Left
-	playersTitle.Parent = frame
-	
-	local playersScroll = Instance.new("ScrollingFrame")
-	playersScroll.Name = "PlayersList"
-	playersScroll.Size = UDim2.new(1, 0, 1, -260)
-	playersScroll.Position = UDim2.new(0, 0, 0, 260)
-	playersScroll.BackgroundColor3 = AdminClient.Config.Theme.Panel
-	playersScroll.BorderSizePixel = 0
-	playersScroll.ScrollBarThickness = 6
-	playersScroll.Parent = frame
-	
-	local scrollCorner = Instance.new("UICorner")
-	scrollCorner.CornerRadius = UDim.new(0, 8)
-	scrollCorner.Parent = playersScroll
-	
-	local playersLayout = Instance.new("UIListLayout")
-	playersLayout.Padding = UDim.new(0, 5)
-	playersLayout.Parent = playersScroll
-	
-	return frame
-end
+	table.insert(openDropdowns, dropdownInfo)
 
--- =============================================================================
--- [[ EVENT LOG OLUŞTURMA ]]
--- =============================================================================
+	for _, opt in ipairs(options) do
+		local b = Instance.new("TextButton")
+		b.Size = UDim2.new(1, -10, 0, 40)
+		b.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+		b.BackgroundTransparency = 0.1
+		b.Text = opt
+		b.TextColor3 = Color3.fromRGB(255, 255, 255)
+		b.Font = Enum.Font.GothamBold
+		b.TextSize = 14
+		b.ZIndex = 1007
+		b.Parent = list
 
-function AdminClient.CreateEventLog(parent)
-	local frame = Instance.new("Frame")
-	frame.Name = "EventLog"
-	frame.Size = UDim2.new(1, 0, 1, 0)
-	frame.BackgroundTransparency = 1
-	frame.Visible = false
-	frame.Parent = parent
-	
-	-- Başlık
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, 0, 0, 30)
-	title.BackgroundTransparency = 1
-	title.Text = "📋 Gerçek-Zamanlı Event Log"
-	title.TextColor3 = AdminClient.Config.Theme.Text
-	title.TextSize = 20
-	title.Font = Enum.Font.GothamBold
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.Parent = frame
-	
-	-- Scroll Frame
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Name = "EventScroll"
-	scroll.Size = UDim2.new(1, 0, 1, -40)
-	scroll.Position = UDim2.new(0, 0, 0, 40)
-	scroll.BackgroundColor3 = AdminClient.Config.Theme.Panel
-	scroll.BorderSizePixel = 0
-	scroll.ScrollBarThickness = 6
-	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	scroll.Parent = frame
-	
-	local scrollCorner = Instance.new("UICorner")
-	scrollCorner.CornerRadius = UDim.new(0, 8)
-	scrollCorner.Parent = scroll
-	
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 2)
-	layout.Parent = scroll
-	
-	return frame
-end
+		local corner3 = Instance.new("UICorner", b)
+		corner3.CornerRadius = UDim.new(0, 6)
 
--- =============================================================================
--- [[ COMMAND PANEL OLUŞTURMA ]]
--- =============================================================================
+		b.MouseButton1Click:Connect(function()
+			selected = opt
+			mainBtn.Text = opt
+			list.Visible = false
+			arrow.Rotation = 0
 
-function AdminClient.CreateCommandPanel(parent)
-	local frame = Instance.new("Frame")
-	frame.Name = "Commands"
-	frame.Size = UDim2.new(1, 0, 1, 0)
-	frame.BackgroundTransparency = 1
-	frame.Visible = false
-	frame.Parent = parent
-	
-	-- Başlık
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, 0, 0, 30)
-	title.BackgroundTransparency = 1
-	title.Text = "⌨️ Admin Komutları"
-	title.TextColor3 = AdminClient.Config.Theme.Text
-	title.TextSize = 20
-	title.Font = Enum.Font.GothamBold
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.Parent = frame
-	
-	-- Komut kategorileri için ScrollingFrame
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, 0, 1, -40)
-	scroll.Position = UDim2.new(0, 0, 0, 40)
-	scroll.BackgroundColor3 = AdminClient.Config.Theme.Panel
-	scroll.BorderSizePixel = 0
-	scroll.ScrollBarThickness = 6
-	scroll.Parent = frame
-	
-	local scrollCorner = Instance.new("UICorner")
-	scrollCorner.CornerRadius = UDim.new(0, 8)
-	scrollCorner.Parent = scroll
-	
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 10)
-	layout.Parent = scroll
-	
-	-- Komut kategorileri
-	local commandCategories = {
-		{
-			Name = "Stat Yönetimi",
-			Commands = {
-				{Name = "Give IQ", Cmd = "GiveStat", Args = {"PlayerName", "IQ", "Amount"}},
-				{Name = "Give Aura", Cmd = "GiveAura", Args = {"PlayerName", "Amount"}},
-				{Name = "Set Stat", Cmd = "SetStat", Args = {"PlayerName", "StatName", "Value"}},
-			}
-		},
-		{
-			Name = "İksir Yönetimi",
-			Commands = {
-				{Name = "Give Potion", Cmd = "GivePotion", Args = {"PlayerName", "PotionType", "Duration"}},
-				{Name = "Clear Potions", Cmd = "ClearPotions", Args = {"PlayerName"}},
-			}
-		},
-		{
-			Name = "Sistem Kontrolü",
-			Commands = {
-				{Name = "Toggle Debug", Cmd = "SetDebug", Args = {"SystemName", "true/false"}},
-				{Name = "Toggle AntiCheat", Cmd = "ToggleAntiCheat", Args = {"true/false"}},
-			}
-		},
-	}
-	
-	for _, category in ipairs(commandCategories) do
-		local categoryFrame = Instance.new("Frame")
-		categoryFrame.Size = UDim2.new(1, -10, 0, 50 + (#category.Commands * 60))
-		categoryFrame.BackgroundColor3 = AdminClient.Config.Theme.Background
-		categoryFrame.BorderSizePixel = 0
-		categoryFrame.Parent = scroll
-		
-		local catCorner = Instance.new("UICorner")
-		catCorner.CornerRadius = UDim.new(0, 8)
-		catCorner.Parent = categoryFrame
-		
-		local catTitle = Instance.new("TextLabel")
-		catTitle.Size = UDim2.new(1, -20, 0, 30)
-		catTitle.Position = UDim2.new(0, 10, 0, 10)
-		catTitle.BackgroundTransparency = 1
-		catTitle.Text = category.Name
-		catTitle.TextColor3 = AdminClient.Config.Theme.Accent
-		catTitle.TextSize = 18
-		catTitle.Font = Enum.Font.GothamBold
-		catTitle.TextXAlignment = Enum.TextXAlignment.Left
-		catTitle.Parent = categoryFrame
-		
-		local cmdLayout = Instance.new("UIListLayout")
-		cmdLayout.Padding = UDim.new(0, 5)
-		cmdLayout.Parent = categoryFrame
-		
-		-- Boşluk için dummy
-		local spacer = Instance.new("Frame")
-		spacer.Size = UDim2.new(1, 0, 0, 40)
-		spacer.BackgroundTransparency = 1
-		spacer.Parent = categoryFrame
-		
-		for _, cmdInfo in ipairs(category.Commands) do
-			local cmdButton = Instance.new("TextButton")
-			cmdButton.Size = UDim2.new(1, -20, 0, 50)
-			cmdButton.BackgroundColor3 = AdminClient.Config.Theme.Panel
-			cmdButton.Text = cmdInfo.Name .. "\n(" .. table.concat(cmdInfo.Args, ", ") .. ")"
-			cmdButton.TextColor3 = AdminClient.Config.Theme.Text
-			cmdButton.TextSize = 14
-			cmdButton.Font = Enum.Font.Gotham
-			cmdButton.Parent = categoryFrame
-			
-			local btnCorner = Instance.new("UICorner")
-			btnCorner.CornerRadius = UDim.new(0, 6)
-			btnCorner.Parent = cmdButton
-			
-			cmdButton.MouseButton1Click:Connect(function()
-				-- Komut çalıştırma - gerçek fonksiyon
-				AdminClient.ExecuteCommand(cmdInfo)
-			end)
-		end
-	end
-	
-	return frame
-end
+			-- Dropdown'ı açık listesinden çıkar
+			for i, dd in ipairs(openDropdowns) do
+				if dd == dropdownInfo then
+					table.remove(openDropdowns, i)
+					break
+				end
+			end
 
--- =============================================================================
--- [[ DEBUG PANEL OLUŞTURMA ]]
--- =============================================================================
+			TweenService:Create(mainBtn.UIStroke, TweenInfo.new(0.2), {
+				Color = Color3.fromRGB(80, 80, 90)
+			}):Play()
+		end)
 
-function AdminClient.CreateDebugPanel(parent)
-	local frame = Instance.new("Frame")
-	frame.Name = "Debug"
-	frame.Size = UDim2.new(1, 0, 1, 0)
-	frame.BackgroundTransparency = 1
-	frame.Visible = false
-	frame.Parent = parent
-	
-	-- Başlık
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, 0, 0, 30)
-	title.BackgroundTransparency = 1
-	title.Text = "🐛 Debug Ayarları"
-	title.TextColor3 = AdminClient.Config.Theme.Text
-	title.TextSize = 20
-	title.Font = Enum.Font.GothamBold
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.Parent = frame
-	
-	-- Scroll Frame
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, 0, 1, -40)
-	scroll.Position = UDim2.new(0, 0, 0, 40)
-	scroll.BackgroundColor3 = AdminClient.Config.Theme.Panel
-	scroll.BorderSizePixel = 0
-	scroll.ScrollBarThickness = 6
-	scroll.Parent = frame
-	
-	local scrollCorner = Instance.new("UICorner")
-	scrollCorner.CornerRadius = UDim.new(0, 8)
-	scrollCorner.Parent = scroll
-	
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 5)
-	layout.Parent = scroll
-	
-	-- Debug sistemleri için toggle'lar
-	local debugSystems = {
-		"Master Debug",
-		"AdminManager",
-		"AdminClient",
-		"AntiCheat",
-		"EventLogger",
-		"StatManager",
-		"PotionManager",
-		"AuraSystem",
-	}
-	
-	for _, systemName in ipairs(debugSystems) do
-		local toggle = Instance.new("Frame")
-		toggle.Name = systemName
-		toggle.Size = UDim2.new(1, -10, 0, 50)
-		toggle.BackgroundColor3 = AdminClient.Config.Theme.Background
-		toggle.BorderSizePixel = 0
-		toggle.Parent = scroll
-		
-		local toggleCorner = Instance.new("UICorner")
-		toggleCorner.CornerRadius = UDim.new(0, 6)
-		toggleCorner.Parent = toggle
-		
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(0.7, 0, 1, 0)
-		label.Position = UDim2.new(0, 10, 0, 0)
-		label.BackgroundTransparency = 1
-		label.Text = systemName
-		label.TextColor3 = AdminClient.Config.Theme.Text
-		label.TextSize = 16
-		label.Font = Enum.Font.Gotham
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Parent = toggle
-		
-		local toggleButton = Instance.new("TextButton")
-		toggleButton.Name = "ToggleButton"
-		toggleButton.Size = UDim2.new(0, 80, 0, 35)
-		toggleButton.Position = UDim2.new(1, -90, 0.5, -17.5)
-		toggleButton.BackgroundColor3 = AdminClient.Config.Theme.Success
-		toggleButton.Text = "ON"
-		toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-		toggleButton.TextSize = 14
-		toggleButton.Font = Enum.Font.GothamBold
-		toggleButton.Parent = toggle
-		
-		local btnCorner = Instance.new("UICorner")
-		btnCorner.CornerRadius = UDim.new(0, 6)
-		btnCorner.Parent = toggleButton
-		
-		toggleButton.MouseButton1Click:Connect(function()
-			-- Toggle debug setting
-			local isOn = toggleButton.Text == "ON"
-			toggleButton.Text = isOn and "OFF" or "ON"
-			toggleButton.BackgroundColor3 = isOn and AdminClient.Config.Theme.Error or AdminClient.Config.Theme.Success
-			
-			-- Sunucuya gönder
-			AdminCommandRemote:FireServer("SetDebug", {systemName, tostring(not isOn)})
+		b.MouseEnter:Connect(function()
+			TweenService:Create(b, TweenInfo.new(0.2), {
+				BackgroundTransparency = 0,
+				BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+			}):Play()
+		end)
+
+		b.MouseLeave:Connect(function()
+			TweenService:Create(b, TweenInfo.new(0.2), {
+				BackgroundTransparency = 0.1,
+				BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+			}):Play()
 		end)
 	end
-	
-	return frame
-end
 
--- =============================================================================
--- [[ TAB GEÇIŞI ]]
--- =============================================================================
+	mainBtn.MouseButton1Click:Connect(function() 
+		-- Önce tüm diğer dropdown'ları kapat
+		CloseAllDropdowns()
 
-function AdminClient.SwitchTab(tabName)
-	CurrentTab = tabName
-	
-	-- Tüm frame'leri gizle
-	DashboardFrame.Visible = false
-	EventLogFrame.Visible = false
-	CommandFrame.Visible = false
-	DebugFrame.Visible = false
-	
-	-- Tab butonlarını güncelle (aktif tab'ı vurgula)
-	local tabBar = MainFrame:FindFirstChild("TabBar")
-	if tabBar then
-		for _, child in ipairs(tabBar:GetChildren()) do
-			if child:IsA("TextButton") then
-				local isActive = child.Name == (tabName .. "Tab")
-				child.BackgroundColor3 = isActive and Color3.fromRGB(70, 130, 255) or AdminClient.Config.Theme.Accent
-				child.Font = isActive and Enum.Font.GothamBold or Enum.Font.Gotham
+		-- Sonra bu dropdown'ı aç
+		list.Visible = not list.Visible
+		if list.Visible then
+			arrow.Rotation = 180
+			TweenService:Create(mainBtn.UIStroke, TweenInfo.new(0.2), {
+				Color = Color3.fromRGB(255, 170, 0)
+			}):Play()
+
+			-- Açık listesine ekle
+			table.insert(openDropdowns, dropdownInfo)
+		else
+			arrow.Rotation = 0
+			TweenService:Create(mainBtn.UIStroke, TweenInfo.new(0.2), {
+				Color = Color3.fromRGB(80, 80, 90)
+			}):Play()
+
+			-- Açık listesinden çıkar
+			for i, dd in ipairs(openDropdowns) do
+				if dd == dropdownInfo then
+					table.remove(openDropdowns, i)
+					break
+				end
 			end
 		end
-	end
-	
-	-- Seçili frame'i göster
-	if tabName == "Dashboard" then
-		DashboardFrame.Visible = true
-		AdminClient.UpdateDashboard()
-	elseif tabName == "Events" then
-		EventLogFrame.Visible = true
-		AdminClient.UpdateEventLog()
-	elseif tabName == "Commands" then
-		CommandFrame.Visible = true
-	elseif tabName == "Debug" then
-		DebugFrame.Visible = true
-	end
-	
-	DebugConfig.Verbose("AdminClient", "Switched to tab: " .. tabName)
+	end)
+
+	return function() return selected end
 end
 
--- =============================================================================
--- [[ DASHBOARD GÜNCELLEME ]]
--- =============================================================================
+-- ✅ MODERN BUTTON
+function AddButton(page, text, color, callback)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 0, 55)
+	btn.BackgroundColor3 = color
+	btn.BackgroundTransparency = 0.1
+	btn.Text = text
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Font = Enum.Font.GothamBlack
+	btn.TextSize = 16
+	btn.TextStrokeTransparency = 0.3
+	btn.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	btn.ZIndex = 1004
+	btn.Parent = page
 
-function AdminClient.UpdateDashboard()
-	if not SystemStatus.Debug then return end
-	
-	-- Durum kartlarını güncelle
-	local statusCards = DashboardFrame:FindFirstChild("StatusCards")
-	if statusCards then
-		-- Debug System
-		local debugCard = statusCards:FindFirstChild("Debug System")
-		if debugCard then
-			local value = debugCard:FindFirstChild("Value")
-			if value then
-				value.Text = SystemStatus.Debug.MasterEnabled and "Enabled" or "Disabled"
-				value.TextColor3 = SystemStatus.Debug.MasterEnabled and AdminClient.Config.Theme.Success or AdminClient.Config.Theme.Error
-			end
-		end
-		
-		-- Anti-Cheat
-		local acCard = statusCards:FindFirstChild("Anti-Cheat")
-		if acCard then
-			local value = acCard:FindFirstChild("Value")
-			if value then
-				value.Text = SystemStatus.AntiCheat.Enabled and "Active" or "Inactive"
-				value.TextColor3 = SystemStatus.AntiCheat.Enabled and AdminClient.Config.Theme.Success or AdminClient.Config.Theme.Warning
-			end
-		end
-	end
-	
-	-- Oyuncu listesini güncelle
-	local playersList = DashboardFrame:FindFirstChild("PlayersList")
-	if playersList then
-		-- Mevcut listeyi temizle
-		for _, child in ipairs(playersList:GetChildren()) do
-			if child:IsA("Frame") then
-				child:Destroy()
-			end
-		end
-		
-		-- Yeni liste oluştur
-		for _, player in ipairs(Players:GetPlayers()) do
-			local playerFrame = Instance.new("Frame")
-			playerFrame.Size = UDim2.new(1, -10, 0, 40)
-			playerFrame.BackgroundColor3 = AdminClient.Config.Theme.Background
-			playerFrame.BorderSizePixel = 0
-			playerFrame.Parent = playersList
-			
-			local frameCorner = Instance.new("UICorner")
-			frameCorner.CornerRadius = UDim.new(0, 6)
-			frameCorner.Parent = playerFrame
-			
-			local nameLabel = Instance.new("TextLabel")
-			nameLabel.Size = UDim2.new(0.6, 0, 1, 0)
-			nameLabel.Position = UDim2.new(0, 10, 0, 0)
-			nameLabel.BackgroundTransparency = 1
-			nameLabel.Text = player.Name
-			nameLabel.TextColor3 = AdminClient.Config.Theme.Text
-			nameLabel.TextSize = 14
-			nameLabel.Font = Enum.Font.Gotham
-			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-			nameLabel.Parent = playerFrame
-			
-			local idLabel = Instance.new("TextLabel")
-			idLabel.Size = UDim2.new(0.4, -10, 1, 0)
-			idLabel.Position = UDim2.new(0.6, 0, 0, 0)
-			idLabel.BackgroundTransparency = 1
-			idLabel.Text = "ID: " .. player.UserId
-			idLabel.TextColor3 = AdminClient.Config.Theme.TextSecondary
-			idLabel.TextSize = 12
-			idLabel.Font = Enum.Font.Gotham
-			idLabel.TextXAlignment = Enum.TextXAlignment.Right
-			idLabel.Parent = playerFrame
-		end
-	end
+	local corner = Instance.new("UICorner", btn)
+	corner.CornerRadius = UDim.new(0, 10)
+
+	local stroke = Instance.new("UIStroke", btn)
+	stroke.Color = color:Lerp(Color3.new(0, 0, 0), 0.3)
+	stroke.Thickness = 2
+	stroke.ZIndex = 1004
+
+	btn.MouseButton1Click:Connect(callback)
+
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.2), {
+			BackgroundTransparency = 0,
+			Size = UDim2.new(1.02, 0, 0, 58)
+		}):Play()
+	end)
+
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.2), {
+			BackgroundTransparency = 0.1,
+			Size = UDim2.new(1, 0, 0, 55)
+		}):Play()
+	end)
+
+	return btn
 end
 
--- =============================================================================
--- [[ EVENT LOG GÜNCELLEME ]]
--- =============================================================================
+-- ✅ SAYFA 1: STATLAR
+local StatPage = CreatePage("StatPage")
+AddSectionTitle(StatPage, "🎯 Hedef Oyuncu")
+local StatTarget = AddInput(StatPage, "Kullanıcı Adı veya ID (Boş = Sen)", "")
 
-function AdminClient.UpdateEventLog()
-	local scroll = EventLogFrame:FindFirstChild("EventScroll")
-	if not scroll then return end
-	
-	-- Son event'leri göster
-	local displayCount = math.min(#EventLog, AdminClient.Config.MaxDisplayedEvents)
-	local startIndex = math.max(1, #EventLog - displayCount + 1)
-	
-	for i = startIndex, #EventLog do
-		local event = EventLog[i]
-		
-		-- Event frame oluştur
-		local eventFrame = Instance.new("Frame")
-		eventFrame.Size = UDim2.new(1, -10, 0, 30)
-		eventFrame.BackgroundColor3 = AdminClient.Config.Theme.Background
-		eventFrame.BorderSizePixel = 0
-		eventFrame.Parent = scroll
-		
-		local frameCorner = Instance.new("UICorner")
-		frameCorner.CornerRadius = UDim.new(0, 4)
-		frameCorner.Parent = eventFrame
-		
-		local timeLabel = Instance.new("TextLabel")
-		timeLabel.Size = UDim2.new(0, 80, 1, 0)
-		timeLabel.Position = UDim2.new(0, 5, 0, 0)
-		timeLabel.BackgroundTransparency = 1
-		timeLabel.Text = event.FormattedTime or "??:??:??"
-		timeLabel.TextColor3 = AdminClient.Config.Theme.TextSecondary
-		timeLabel.TextSize = 12
-		timeLabel.Font = Enum.Font.Gotham
-		timeLabel.TextXAlignment = Enum.TextXAlignment.Left
-		timeLabel.Parent = eventFrame
-		
-		local categoryLabel = Instance.new("TextLabel")
-		categoryLabel.Size = UDim2.new(0, 120, 1, 0)
-		categoryLabel.Position = UDim2.new(0, 90, 0, 0)
-		categoryLabel.BackgroundTransparency = 1
-		categoryLabel.Text = "[" .. (event.Category or "Unknown") .. "]"
-		categoryLabel.TextColor3 = AdminClient.Config.Theme.Accent
-		categoryLabel.TextSize = 12
-		categoryLabel.Font = Enum.Font.GothamBold
-		categoryLabel.TextXAlignment = Enum.TextXAlignment.Left
-		categoryLabel.Parent = eventFrame
-		
-		local messageLabel = Instance.new("TextLabel")
-		messageLabel.Size = UDim2.new(1, -220, 1, 0)
-		messageLabel.Position = UDim2.new(0, 215, 0, 0)
-		messageLabel.BackgroundTransparency = 1
-		messageLabel.Text = (event.PlayerName or "System") .. " - " .. (event.EventType or "Event")
-		messageLabel.TextColor3 = AdminClient.Config.Theme.Text
-		messageLabel.TextSize = 12
-		messageLabel.Font = Enum.Font.Gotham
-		messageLabel.TextXAlignment = Enum.TextXAlignment.Left
-		messageLabel.TextTruncate = Enum.TextTruncate.AtEnd
-		messageLabel.Parent = eventFrame
-	end
-	
-	-- Auto scroll
-	if AdminClient.Config.AutoScroll then
-		scroll.CanvasPosition = Vector2.new(0, scroll.AbsoluteCanvasSize.Y)
-	end
-end
+AddSectionTitle(StatPage, "📊 Stat Seçimi")
+local GetStat = AddDropdown(StatPage, {
+	"Coins", 
+	"IQ", 
+	"Rebirths", 
+	"Essence",
+	"Aura",
+	"Luck",
+	"ClickLvl",
+	"WalkSpeedLvl",
+	"MaxHatch",
+	"DamageLvl",
+	"CoinsLvl"
+}, "Stat Seçiniz ▼")
 
--- =============================================================================
--- [[ BİLDİRİM SİSTEMİ ]]
--- =============================================================================
+local StatAmount = AddInput(StatPage, "Miktar", "")
 
-function AdminClient.ShowNotification(message, notifType)
-	if not AdminClient.Config.ShowNotifications then return end
-	
-	notifType = notifType or "info"
-	local color = AdminClient.Config.Theme.Accent
-	
-	if notifType == "success" then
-		color = AdminClient.Config.Theme.Success
-	elseif notifType == "warning" then
-		color = AdminClient.Config.Theme.Warning
-	elseif notifType == "error" then
-		color = AdminClient.Config.Theme.Error
+local resetConfirm = false
+AddButton(StatPage, "📥 STAT EKLE", Color3.fromRGB(0, 170, 255), function()
+	local s = GetStat()
+	if s then
+		AdminEvent:FireServer("Player", "AddStat", {
+			Target = StatTarget.Text,
+			Stat = s,
+			Amount = tonumber(StatAmount.Text) or 0
+		})
 	end
-	
-	-- Bildirim frame
-	local notif = Instance.new("Frame")
-	notif.Size = UDim2.new(0, 300, 0, 60)
-	notif.Position = UDim2.new(1, -320, 1, -80)
-	notif.BackgroundColor3 = color
-	notif.BorderSizePixel = 0
-	notif.Parent = ScreenGui
-	
-	local notifCorner = Instance.new("UICorner")
-	notifCorner.CornerRadius = UDim.new(0, 8)
-	notifCorner.Parent = notif
-	
-	local notifLabel = Instance.new("TextLabel")
-	notifLabel.Size = UDim2.new(1, -20, 1, -20)
-	notifLabel.Position = UDim2.new(0, 10, 0, 10)
-	notifLabel.BackgroundTransparency = 1
-	notifLabel.Text = message
-	notifLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	notifLabel.TextSize = 14
-	notifLabel.Font = Enum.Font.Gotham
-	notifLabel.TextWrapped = true
-	notifLabel.Parent = notif
-	
-	-- Animasyon ve otomatik silme
-	task.spawn(function()
-		-- Slide in
-		notif:TweenPosition(
-			UDim2.new(1, -320, 1, -80),
-			Enum.EasingDirection.Out,
-			Enum.EasingStyle.Back,
-			0.3,
-			true
-		)
-		
-		task.wait(AdminClient.Config.NotificationDuration)
-		
-		-- Slide out
-		notif:TweenPosition(
-			UDim2.new(1, 20, 1, -80),
-			Enum.EasingDirection.In,
-			Enum.EasingStyle.Back,
-			0.3,
-			true
-		)
-		
+end)
+
+AddButton(StatPage, "⚠️ TÜM VERİLERİ SIFIRLA", Color3.fromRGB(200, 50, 50), function()
+	if not resetConfirm then
+		resetConfirm = true
+		warn("⚠️ Tüm verileri sıfırlamak için tekrar tıklayın!")
+		task.delay(3, function() resetConfirm = false end)
+		return
+	end
+
+	AdminEvent:FireServer("Player", "ResetStats", {
+		Target = StatTarget.Text,
+		Confirm = true
+	})
+	resetConfirm = false
+end)
+
+-- ✅ SAYFA 2: İKSİRLER
+local PotPage = CreatePage("PotPage")
+AddSectionTitle(PotPage, "🎯 Hedef Oyuncu")
+local PotTarget = AddInput(PotPage, "Kullanıcı Adı veya ID (Boş = Sen)", "")
+
+AddSectionTitle(PotPage, "🧪 İksir Türü")
+local GetPotionType = AddDropdown(PotPage, {
+	"IQ", "Damage", "Coins", "Essence", 
+	"Aura", "Luck", "Speed"
+}, "İksir Türü ▼")
+
+AddSectionTitle(PotPage, "📦 İksir Boyutu")
+local GetPotionSize = AddDropdown(PotPage, {
+	"Small", "Medium", "Big"
+}, "Boyut Seçiniz ▼")
+
+local PotAmount = AddInput(PotPage, "Miktar", "")
+
+-- İKSİR ÖĞE OLARAK VER
+AddButton(PotPage, "🧪 İKSİRİ ÖĞE OLARAK VER", Color3.fromRGB(150, 50, 255), function()
+	local pType = GetPotionType()
+	local pSize = GetPotionSize()
+
+	if pType and pSize then
+		local potionName = pType .. "_" .. pSize
+
+		AdminEvent:FireServer("Player", "GivePotion", {
+			Target = PotTarget.Text,
+			Potion = potionName,
+			Amount = tonumber(PotAmount.Text) or 1
+		})
+
+		print("✅ İksir öğe olarak veriliyor:", potionName, "x", PotAmount.Text)
+	end
+end)
+
+-- İKSİR SÜRE OLARAK UYGULA (İÇİR)
+AddButton(PotPage, "⚗️ İKSİRİ İÇİR (Süreli)", Color3.fromRGB(50, 150, 255), function()
+	local pType = GetPotionType()
+	local pSize = GetPotionSize()
+
+	if pType and pSize then
+		local potionName = pType .. "_" .. pSize
+
+		AdminEvent:FireServer("Player", "DrinkPotion", {
+			Target = PotTarget.Text,
+			Potion = potionName
+		})
+
+		print("✅ İksir içirildi (süreli):", potionName)
+	end
+end)
+
+-- ✅ SAYFA 3: ENVANTER
+local InvPage = CreatePage("InvPage")
+AddSectionTitle(InvPage, "🎯 Hedef Oyuncu")
+local InvTarget = AddInput(InvPage, "Kullanıcı Adı veya ID (Boş = Sen)", "")
+
+AddSectionTitle(InvPage, "🎰 Spin Market")
+local SpinAmt = AddInput(InvPage, "Spin Miktarı", "")
+AddButton(InvPage, "🎰 SPİN VER", Color3.fromRGB(255, 170, 0), function()
+	AdminEvent:FireServer("Player", "GiveSpin", {
+		Target = InvTarget.Text, 
+		Amount = tonumber(SpinAmt.Text) or 0
+	})
+end)
+
+AddSectionTitle(InvPage, "🥚 Hatch Limiti")
+local HatchAmt = AddInput(InvPage, "Ekstra Hatch Sayısı", "")
+AddButton(InvPage, "🥚 HATCH LİMİTİ ARTTIR", Color3.fromRGB(0, 200, 100), function()
+	AdminEvent:FireServer("Player", "AddStat", {
+		Target = InvTarget.Text,
+		Stat = "MaxHatch",
+		Amount = tonumber(HatchAmt.Text) or 0
+	})
+end)
+
+-- ✅ SAYFA 4: ROT SKİLL
+local SkillPage = CreatePage("SkillPage")
+AddSectionTitle(SkillPage, "🎯 Hedef Oyuncu")
+local SkillTarget = AddInput(SkillPage, "Kullanıcı Adı veya ID (Boş = Sen)", "")
+
+AddSectionTitle(SkillPage, "🗺️ Harita Seçimi")
+local GetMap = AddDropdown(SkillPage, {
+	"Map 1 - Rot Skill",
+	"Map 2 - GigaPower", 
+	"Map 3 - SixSeven",
+	"Map 4 - RizzlerPower",
+	"Map 5 - Sigma"
+}, "Harita Seçiniz ▼")
+
+AddSectionTitle(SkillPage, "⭐ Skill Seviyesi")
+local GetSkillLevel = AddDropdown(SkillPage, {
+	"Level 1", "Level 2", "Level 3", 
+	"Level 4", "Level 5", "Level 6", "Level 7"
+}, "Skill Seviyesi ▼")
+
+AddButton(SkillPage, "⭐ SKİLL VER", Color3.fromRGB(100, 200, 100), function()
+	local map = GetMap()
+	local skillLevel = GetSkillLevel()
+
+	if map and skillLevel then
+		local mapID = tonumber(string.match(map, "Map (%d)"))
+		local skillIndex = tonumber(string.match(skillLevel, "Level (%d)"))
+
+		if mapID and skillIndex then
+			AdminEvent:FireServer("Player", "GiveRotSkill", {
+				Target = SkillTarget.Text,
+				MapID = mapID,
+				SkillIndex = skillIndex
+			})
+		end
+	end
+end)
+
+AddSectionTitle(SkillPage, "💰 Token Verme")
+local TokenAmount = AddInput(SkillPage, "Token Miktarı", "")
+AddButton(SkillPage, "💰 TOKEN VER", Color3.fromRGB(255, 200, 50), function()
+	local map = GetMap()
+	if map then
+		local mapID = tonumber(string.match(map, "Map (%d)"))
+		if mapID then
+			AdminEvent:FireServer("Player", "GiveRotSkillToken", {
+				Target = SkillTarget.Text,
+				MapID = mapID,
+				Amount = tonumber(TokenAmount.Text) or 0
+			})
+		end
+	end
+end)
+
+-- ✅ SAYFA 5: EVENTLER
+local EventPage = CreatePage("EventPage")
+AddSectionTitle(EventPage, "🌍 Server Event Yönetimi")
+AddSectionTitle(EventPage, "(Tüm Server Etkilenir)")
+
+AddButton(EventPage, "🔥 DUNGEON BAŞLAT", Color3.fromRGB(255, 80, 80), function()
+	AdminEvent:FireServer("Event", "SetTime", "StartDungeon")
+end)
+
+AddButton(EventPage, "👹 BOSS TRIAL BAŞLAT", Color3.fromRGB(200, 50, 255), function()
+	AdminEvent:FireServer("Event", "SetTime", "StartBoss")
+end)
+
+AddButton(EventPage, "💰 2X REWARD", Color3.fromRGB(255, 215, 0), function()
+	AdminEvent:FireServer("Event", "SetTime", "DoubleRewards")
+end)
+
+AddButton(EventPage, "✨ ESSENCE YAĞMURU", Color3.fromRGB(180, 100, 255), function()
+	AdminEvent:FireServer("Event", "SetTime", "EssenceRain")
+end)
+
+-- ✅ SEKMELERİ OLUŞTUR
+local tab1 = CreateTabButton("Statlar", "📊", StatPage)
+local tab2 = CreateTabButton("İksirler", "🧪", PotPage)
+local tab3 = CreateTabButton("Envanter", "🎒", InvPage)
+local tab4 = CreateTabButton("Rot Skill", "⭐", SkillPage)
+local tab5 = CreateTabButton("Eventler", "🌍", EventPage)
+
+-- İlk sayfayı göster ve ilk tab'ı aktif yap
+StatPage.Visible = true
+CurrentPage = StatPage
+CurrentTabButton = tab1
+TweenService:Create(tab1, TweenInfo.new(0.2), {
+	BackgroundColor3 = Color3.fromRGB(255, 170, 0),
+	BackgroundTransparency = 0,
+	TextColor3 = Color3.fromRGB(25, 25, 30)
+}):Play()
+tab1.UIStroke.Color = Color3.fromRGB(255, 200, 100)
+
+-- ✅ PANEL AÇ/KAPA
+local isOpen = false
+local isAnimating = false
+
+OpenBtn.MouseButton1Click:Connect(function()
+	if isAnimating then return end
+	isAnimating = true
+
+	isOpen = not isOpen
+
+	if isOpen then
+		MainFrame.Visible = true
+		MainFrame.Position = UDim2.new(0.15, 0, 0.1, -50)
+		MainFrame.Size = UDim2.new(0.7, 0, 0, 0)
+
+		TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0.7, 0, 0.8, 0),
+			Position = UDim2.new(0.15, 0, 0.1, 0)
+		}):Play()
+	else
+		TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+			Size = UDim2.new(0.7, 0, 0, 0),
+			Position = UDim2.new(0.15, 0, 0.1, -50)
+		}):Play()
+
 		task.wait(0.3)
-		notif:Destroy()
-	end)
-	
-	DebugConfig.Verbose("AdminClient", "Notification shown: " .. message)
-end
-
--- =============================================================================
--- [[ UI TOGGLE ]]
--- =============================================================================
-
-function AdminClient.ToggleUI()
-	UIVisible = not UIVisible
-	ScreenGui.Enabled = UIVisible
-	
-	if UIVisible then
-		AdminClient.SwitchTab(CurrentTab)
-		AdminClient.ShowNotification("Admin Panel Açıldı", "success")
+		MainFrame.Visible = false
+		-- Panel kapanınca dropdown'ları da kapat
+		CloseAllDropdowns()
 	end
-	
-	DebugConfig.Info("AdminClient", "UI toggled: " .. tostring(UIVisible))
-end
 
--- =============================================================================
--- [[ EVENT HANDLERları ]]
--- =============================================================================
+	task.wait(0.1)
+	isAnimating = false
+end)
 
--- Admin data güncellemesi
-AdminDataRemote.OnClientEvent:Connect(function(data)
-	if data.Type == "SystemStatus" then
-		SystemStatus = data.Data
-		
-		if CurrentTab == "Dashboard" then
-			AdminClient.UpdateDashboard()
-		end
-		
-		DebugConfig.Verbose("AdminClient", "System status updated")
-	elseif data.Type == "CommandResult" then
-		local message = data.Command .. ": " .. (data.Message or "Sonuç yok")
-		AdminClient.ShowNotification(message, data.Success and "success" or "error")
-		
-		DebugConfig.Info("AdminClient", message)
+-- ✅ ESC TUŞU İLE KAPAT
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+
+	if input.KeyCode == Enum.KeyCode.Escape and isOpen then
+		OpenBtn.MouseButton1Click:Fire()
 	end
 end)
 
--- Event log güncellemesi
-EventLogRemote.OnClientEvent:Connect(function(data)
-	if type(data) == "table" then
-		if data.Type == "History" then
-			-- Toplu event geçmişi
-			for _, event in ipairs(data.Events or {}) do
-				table.insert(EventLog, event)
-			end
-		else
-			-- Tek event
-			table.insert(EventLog, data)
-		end
-		
-		-- Maksimum sayıyı aşarsa eski event'leri sil
-		while #EventLog > AdminClient.Config.MaxDisplayedEvents do
-			table.remove(EventLog, 1)
-		end
-		
-		-- Event log tab açıksa güncelle
-		if CurrentTab == "Events" and EventLogFrame.Visible then
-			-- Sadece yeni eventi ekle (tümünü yeniden oluşturmak yerine)
-			local scroll = EventLogFrame:FindFirstChild("EventScroll")
-			if scroll and data.Type ~= "History" then
-				-- Yeni event frame'i oluştur (UpdateEventLog'dan alınan kod)
-				-- ... (kısa tutmak için basitleştirildi)
-			end
-		end
-		
-		DebugConfig.Verbose("AdminClient", "Event log updated")
-	end
-end)
+print("✅ AdminClient: Görsel sorunlar düzeltildi, modern UI aktif!")
 
--- =============================================================================
--- [[ BAŞLATMA ]]
--- =============================================================================
+----------------------------------------------------
 
-function AdminClient.Initialize()
-	-- Admin kontrolü
-	local isAdminAttr = LocalPlayer:GetAttribute("IsAdmin")
-	if isAdminAttr then
-		IsAdmin = true
-	end
-	
-	if not IsAdmin then
-		DebugConfig.Info("AdminClient", "Player is not an admin, skipping initialization")
-		return
-	end
-	
-	DebugConfig.Info("AdminClient", "Initializing Admin Client...")
-	
-	-- UI oluştur
-	CreateScreenGui()
-	CreateToggleButton()
-	
-	-- Klavye kısayolu
-	UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
-		
-		if input.KeyCode == AdminClient.Config.ToggleKey then
-			AdminClient.ToggleUI()
-		end
-	end)
-	
-	-- Sistem durumunu iste
-	AdminDataRemote:FireServer("SystemStatus")
-	
-	-- Event geçmişini iste
-	EventLogRemote:FireServer("RequestHistory")
-	
-	DebugConfig.Info("AdminClient", "Admin Client Initialized Successfully ✅")
-	AdminClient.ShowNotification("Admin Panel Hazır 🔧 (F2 veya butona tıkla)", "success")
-end
-
--- =============================================================================
--- [[ KOMUT ÇALIŞTIRMA FONKSİYONU ]]
--- =============================================================================
-
-function AdminClient.ExecuteCommand(cmdInfo)
-	DebugConfig.Info("AdminClient", "Executing command: " .. cmdInfo.Name)
-	
-	-- Basit komut çalıştırma - gerçek implementasyon için dialog göster
-	local cmd = cmdInfo.Cmd
-	local args = cmdInfo.Args or {}
-	
-	-- Örnek komutlar
-	if cmd == "GiveStat" then
-		-- Oyuncu seçme ve stat verme
-		local playerName = AdminClient.GetPlayerInput("Player Adı:")
-		if not playerName then return end
-		
-		local statType = AdminClient.GetInput("Stat Türü (IQ/Coins/Essence/Aura/RSToken/Rebirths):")
-		if not statType then return end
-		
-		local amount = AdminClient.GetNumberInput("Miktar:")
-		if not amount then return end
-		
-		-- Remote call
-		AdminCommandRemote:FireServer("GiveStat", {
-			targetPlayer = playerName,
-			statType = statType,
-			amount = amount
-		})
-		
-		AdminClient.ShowNotification("Komut gönderildi: Give " .. statType .. " to " .. playerName, "info")
-		
-	elseif cmd == "GivePotion" then
-		local playerName = AdminClient.GetPlayerInput("Player Adı:")
-		if not playerName then return end
-		
-		local potionType = AdminClient.GetInput("Potion Türü (Luck/IQ/Aura/Essence/Speed):")
-		if not potionType then return end
-		
-		local duration = AdminClient.GetNumberInput("Süre (saniye):")
-		if not duration then return end
-		
-		AdminCommandRemote:FireServer("GivePotion", {
-			targetPlayer = playerName,
-			potionType = potionType,
-			duration = duration
-		})
-		
-		AdminClient.ShowNotification("Komut gönderildi: Give " .. potionType .. " potion", "info")
-		
-	elseif cmd == "SetDebug" then
-		local systemName = AdminClient.GetInput("System Adı:")
-		if not systemName then return end
-		
-		local enabled = AdminClient.GetInput("Açık mı? (true/false):")
-		if not enabled then return end
-		
-		AdminCommandRemote:FireServer("SetDebug", {
-			systemName = systemName,
-			enabled = (enabled:lower() == "true")
-		})
-		
-		AdminClient.ShowNotification("Debug ayarı değiştirildi", "info")
-	else
-		-- Genel komut gönderme
-		AdminCommandRemote:FireServer(cmd, {})
-		AdminClient.ShowNotification("Komut: " .. cmdInfo.Name, "info")
-	end
-end
-
--- Basit input fonksiyonları (UI dialog yerine)
-function AdminClient.GetInput(prompt)
-	-- Not: Gerçek uygulamada UI dialog kullanılmalı
-	-- Şimdilik basit versiyon
-	warn("[AdminClient] Input needed: " .. prompt)
-	return nil -- Gerçek implementasyon gerekli
-end
-
-function AdminClient.GetPlayerInput(prompt)
-	-- Online oyunculardan birini seç
-	local players = Players:GetPlayers()
-	if #players > 0 then
-		return players[1].Name -- İlk oyuncu (demo için)
-	end
-	return nil
-end
-
-function AdminClient.GetNumberInput(prompt)
-	-- Sayı girişi
-	return 100 -- Demo değer
-end
-
--- =============================================================================
--- [[ OTOMATİK BAŞLATMA ]]
--- =============================================================================
-
--- Otomatik başlatma
-task.spawn(function()
-	-- İlk olarak hemen kontrol et
-	local isAdminAttr = LocalPlayer:GetAttribute("IsAdmin")
-	if isAdminAttr == true then
-		DebugConfig.Info("AdminClient", "IsAdmin attribute already set, initializing immediately")
-		AdminClient.Initialize()
-		return
-	end
-	
-	-- Admin attribute'unun set edilmesini bekle
-	local maxWait = 10
-	local waited = 0
-	
-	DebugConfig.Info("AdminClient", "Waiting for IsAdmin attribute to be set...")
-	
-	while waited < maxWait do
-		if LocalPlayer:GetAttribute("IsAdmin") == true then
-			DebugConfig.Info("AdminClient", "IsAdmin attribute detected, initializing")
-			AdminClient.Initialize()
-			return
-		end
-		
-		task.wait(0.5)
-		waited = waited + 0.5
-	end
-	
-	-- Timeout sonrası sunucudan kontrol et
-	DebugConfig.Warning("AdminClient", "Timeout waiting for IsAdmin attribute, requesting from server")
-	
-	-- Sunucudan admin durumunu iste
-	local checkRemote = Remotes:FindFirstChild("AdminDataUpdate")
-	if checkRemote then
-		-- Sunucuya admin kontrolü iste
-		checkRemote:FireServer("CheckAdmin")
-		
-		-- 5 saniye daha bekle
-		task.wait(5)
-		
-		-- Tekrar kontrol et
-		if LocalPlayer:GetAttribute("IsAdmin") == true then
-			DebugConfig.Info("AdminClient", "IsAdmin attribute set after server request")
-			AdminClient.Initialize()
-		else
-			DebugConfig.Warning("AdminClient", "Still not admin after server request. Client will not initialize.")
-		end
-	else
-		DebugConfig.Error("AdminClient", "AdminDataUpdate remote not found")
-	end
-end)
-
-return AdminClient
