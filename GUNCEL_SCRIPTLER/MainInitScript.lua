@@ -70,17 +70,21 @@ if not AdminManagerModule then
     return
 end
 
-local success, AdminManager = pcall(function()
+local success, loadResult = pcall(function()
     return require(AdminManagerModule)
 end)
 
 if not success then
-    warn("❌ HATA: AdminManager yüklenirken hata oluştu:", AdminManager)
+    warn("❌ HATA: AdminManager yüklenirken hata oluştu:", loadResult)
     warn("   → AdminManager.lua içeriğinin doğru kopyalandığından emin olun")
     warn("   → Output penceresindeki hata mesajlarını okuyun")
+    warn("")
+    warn("🔍 Detaylı Hata:")
+    warn(tostring(loadResult))
     return
 end
 
+local AdminManager = loadResult
 print("✅ AdminManager yüklendi")
 
 -- ============================================================================
@@ -88,11 +92,17 @@ print("✅ AdminManager yüklendi")
 -- ============================================================================
 
 local hasAdmins = false
-for userId, isAdmin in pairs(AdminManager.Config.Admins) do
-    if isAdmin then
-        print(string.format("✅ Admin UserID: %d", userId))
-        hasAdmins = true
+if AdminManager and AdminManager.Config and AdminManager.Config.Admins then
+    for userId, isAdmin in pairs(AdminManager.Config.Admins) do
+        if isAdmin then
+            print(string.format("✅ Admin UserID: %d", userId))
+            hasAdmins = true
+        end
     end
+else
+    warn("❌ HATA: AdminManager.Config.Admins bulunamadı!")
+    warn("   → AdminManager modülü düzgün yüklenmedi")
+    return
 end
 
 if not hasAdmins then
