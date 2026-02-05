@@ -457,6 +457,12 @@ end)
 
 print("✅ AdminManager: Güncellendi ve düzeltildi")
 
+-- AdminManager modülü oluştur
+local AdminManager = {}
+AdminManager.Config = {
+	Admins = Admins
+}
+
 return AdminManager
 
 ----------------------------------
