@@ -1,0 +1,178 @@
+═══════════════════════════════════════════════════════════════════════════
+                    ADMIN PANEL SİSTEMİ - KURULUM TALİMATI
+                           SON GÜNCELLEME: 04 Şubat 2026
+═══════════════════════════════════════════════════════════════════════════
+
+📁 GÜNCEL SCRİPTLER KLASÖRÜ: /GUNCEL_SCRIPTLER/
+   Bu klasördeki scriptler her zaman günceldir. Her yenilik geldiğinde bu
+   klasördeki dosyalar yenilenir.
+
+═══════════════════════════════════════════════════════════════════════════
+                            1. ROBLOX'TA OLUŞTUR
+═══════════════════════════════════════════════════════════════════════════
+
+ADIM 1: KLASÖRLER OLUŞTUR
+--------------------------
+ServerScriptService içinde:
+   → Administration (Folder)
+
+ReplicatedStorage içinde:
+   → Modules (Folder)
+   → Remotes (Folder)
+      → Administration (Folder - Remotes içinde)
+
+StarterPlayer → StarterPlayerScripts içinde:
+   → Administration (Folder)
+
+
+ADIM 2: MODULESCRIPT'LERİ EKLE
+-------------------------------
+ServerScriptService/Administration/ içine:
+   1. AdminManager (ModuleScript)
+      └─ Kodu kopyala: GUNCEL_SCRIPTLER/AdminManager.lua
+      └─ SATIR 120: UserID'ni ekle → [4221507527] = true,
+   
+   2. AntiCheatSystem (ModuleScript)
+      └─ Kodu kopyala: GUNCEL_SCRIPTLER/AntiCheatSystem.lua
+   
+   3. EventLogger (ModuleScript)
+      └─ Kodu kopyala: GUNCEL_SCRIPTLER/EventLogger.lua
+
+ReplicatedStorage/Modules/ içine:
+   4. DebugConfig (ModuleScript)
+      └─ Kodu kopyala: GUNCEL_SCRIPTLER/DebugConfig.lua
+
+
+ADIM 3: SCRİPT'LERİ EKLE
+-------------------------
+ServerScriptService içine (Administration dışında):
+   5. MainInit (Script)
+      └─ Kodu kopyala: GUNCEL_SCRIPTLER/MainInitScript.lua
+
+StarterPlayer/StarterPlayerScripts/Administration/ içine:
+   6. AdminClient (LocalScript)
+      └─ Kodu kopyala: GUNCEL_SCRIPTLER/AdminClient.lua
+
+
+ADIM 4: REMOTE'LARI OLUŞTUR
+----------------------------
+ReplicatedStorage/Remotes/Administration/ içine:
+   1. AdminCommand (RemoteEvent)
+   2. AdminDataUpdate (RemoteEvent)
+   3. EventLogUpdate (RemoteEvent)
+
+ÖNEMLİ: Sadece bu 3 remote yeterli! Başka remote ekleme.
+
+
+═══════════════════════════════════════════════════════════════════════════
+                         2. ESKİ DOSYALARI SİL
+═══════════════════════════════════════════════════════════════════════════
+
+REMOTES/ADMINISTRATION içinde BUNLARI SİL:
+   ❌ AdminCommandRemote (RemoteFunction)
+   ❌ AdminControlBindable (BindableEvent)
+   ❌ AdminEvent (RemoteEvent)
+   ❌ EventLogRemote (RemoteEvent) - Eski isim
+   ❌ AdminDataRemote (RemoteEvent) - Eski isim
+
+Sadece bu 3 remote kalmalı:
+   ✅ AdminCommand (RemoteEvent)
+   ✅ AdminDataUpdate (RemoteEvent)
+   ✅ EventLogUpdate (RemoteEvent)
+
+
+═══════════════════════════════════════════════════════════════════════════
+                           3. TEST ET
+═══════════════════════════════════════════════════════════════════════════
+
+1. Oyunu başlat
+2. Output'ta şunları görmeli:
+   ✅ "Admin Sistem başlatılıyor..."
+   ✅ "DebugConfig yüklendi"
+   ✅ "AntiCheatSystem başlatıldı"
+   ✅ "EventLogger başlatıldı"
+   ✅ "AdminManager başlatıldı"
+   ✅ "[Senin Adın] için IsAdmin attribute set edildi"
+
+3. Oyunda sağ alt köşede 🔧 butonu görünmeli
+4. 🔧 butonuna tıkla VEYA F2'ye bas → Admin panel açılmalı
+
+
+═══════════════════════════════════════════════════════════════════════════
+                          4. ÖZELLİKLER
+═══════════════════════════════════════════════════════════════════════════
+
+DASHBOARD TAB:
+   • Sistem durumu kartları
+   • Aktif oyuncu sayısı
+   • Debug/Anti-Cheat durumu
+
+EVENTS TAB:
+   • Canlı event log'ları
+   • Oyuncu giriş/çıkış
+   • Stat değişiklikleri
+   • Anti-cheat uyarıları
+
+COMMANDS TAB:
+   • Oyuncu Yönetimi:
+      - give_stat [oyuncu] [stat] [miktar]
+      - set_stat [oyuncu] [stat] [miktar]
+   
+   • Potion Yönetimi:
+      - give_potion [oyuncu] [potion] [miktar]
+      - clear_potions [oyuncu]
+   
+   • Aura Yönetimi:
+      - give_aura [oyuncu] [aura]
+      - check_auras [oyuncu]
+   
+   • Sistem Kontrol:
+      - toggle_debug [sistem]
+      - toggle_anticheat
+      - kick [oyuncu] [sebep]
+
+DEBUG TAB:
+   • Master Debug On/Off
+   • Sistem bazlı debug kontrol
+   • Log seviyeleri
+   • Anti-cheat toggle
+
+
+═══════════════════════════════════════════════════════════════════════════
+                      5. SORUN GİDERME
+═══════════════════════════════════════════════════════════════════════════
+
+PROBLEM: Buton görünmüyor
+ÇÖZÜM: AdminManager.lua satır 120'de UserID'nin doğru eklendiğinden emin ol
+
+PROBLEM: F2 çalışmıyor
+ÇÖZÜM: AdminClient'in StarterPlayerScripts/Administration içinde olduğunu kontrol et
+
+PROBLEM: Remote hatası
+ÇÖZÜM: Remotes/Administration klasöründe sadece 3 RemoteEvent olmalı
+
+PROBLEM: Output'ta hata
+ÇÖZÜM: Her scriptın doğru yerde ve doğru tipte olduğunu kontrol et
+
+
+═══════════════════════════════════════════════════════════════════════════
+                          6. GÜNCELLEME
+═══════════════════════════════════════════════════════════════════════════
+
+Yeni özellik eklendiğinde:
+   1. GUNCEL_SCRIPTLER/ klasöründeki dosyalar güncellenir
+   2. Bu dosya (KURULUM_TALIMATI.txt) güncellenir
+   3. Sadece değişen script'leri Roblox'ta güncelle
+   4. Her zaman bu dosyayı oku, en güncel talimatlar burada
+
+
+═══════════════════════════════════════════════════════════════════════════
+                           ÖZEL NOTLAR
+═══════════════════════════════════════════════════════════════════════════
+
+• Eski dokümanlar /Old/ klasöründe saklanır
+• GUNCEL_SCRIPTLER/ klasörü her zaman günceldir
+• Bu talimat dosyası değişmez, sadece güncellenir
+• Her yenilik bu dosyaya eklenir
+
+═══════════════════════════════════════════════════════════════════════════

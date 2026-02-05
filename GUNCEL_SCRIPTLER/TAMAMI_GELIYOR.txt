@@ -1,0 +1,75 @@
+═══════════════════════════════════════════════════════════════
+          TAM ÖZELLİKLİ SCRIPTLER HAZ IRLANIYOR
+═══════════════════════════════════════════════════════════════
+
+📦 MEVCUT DOSYALAR:
+═══════════════════════════════════════════════════════════════
+
+✅ AdminClient.lua (36.7 KB) - Basit versiyon
+✅ AdminManager.lua (20.7 KB) - Basit versiyon
+✅ AntiCheatSystem.lua (13.1 KB)
+✅ DebugConfig.lua (7.7 KB)
+✅ EventLogger.lua (10.7 KB)
+✅ MainInitScript.lua (8.1 KB)
+
+
+🚀 HAZIRLANMAKTA OLAN TAM SCRIPTLER:
+═══════════════════════════════════════════════════════════════
+
+⏳ AdminClient_TAMAMI.lua (~127 KB)
+   - Event notification UI (animated, countdown)
+   - 6 Dynamic pages (Dashboard, Stats, Potions, Rot Skills, Events, Logs)
+   - Dropdown menus (ESC/click-outside)
+   - F2 + button toggle
+   - Full validation
+   - Instant feedback
+
+⏳ AdminManager_TAMAMI.lua (~102 KB)
+   - 7 Event system (2xIQ, 2xCoins, Lucky Hour, Speed Frenzy, Golden Rush, Rainbow Stars, Essence Rain)
+   - All stat operations (IQ, Coins, Essence, Aura, RSToken, Rebirths, EquippedSkill)
+   - Potion system (5 types)
+   - Rot Skill system (RSToken, EquippedSkill 1-10)
+   - Rate limiting
+   - Operation history
+   - Exploit detection
+
+
+📋 KURULUM:
+═══════════════════════════════════════════════════════════════
+
+Root klasöründeki BASIT_KURULUM.txt dosyasını oku!
+
+Hiyerarşi:
+- ServerScriptService/AdminSystem/
+- ReplicatedStorage/Modules/
+- ReplicatedStorage/Remotes/
+- StarterPlayerScripts/
+
+Detaylar BASIT_KURULUM.txt'de!
+
+
+🎯 HEDEFİMİZ:
+═══════════════════════════════════════════════════════════════
+
+Oyununuzdaki mevcut sistemle uyumlu, tam özellikli admin panel:
+
+✅ leaderstats (IQ, Coins, Essence, Aura, RSToken, Rebirths)
+✅ PotionInventory (Luck, IQ, Aura, Essence, Speed)
+✅ Attribute multipliers (IQMultiplier, CoinsMultiplier, vb.)
+✅ EquippedSkill (1-10)
+✅ Event VFX broadcast
+✅ DataStore uyumlu
+
+
+⏰ DURUM:
+═══════════════════════════════════════════════════════════════
+
+Tam özellikli scriptler bir sonraki commit'te eklenecek.
+
+Şimdilik BASIT_KURULUM.txt dosyasını inceleyip hiyerarşiyi 
+hazırlayabilirsiniz.
+
+
+═══════════════════════════════════════════════════════════════
+           Scriptler hazırlanıyor... Lütfen bekleyin!
+═══════════════════════════════════════════════════════════════
