@@ -1,4 +1,16 @@
 -- AdminClient (Tam hali - görsel sorunlar düzeltildi)
+-- ✅ DEBUG/PRINT/LOG TOGGLE
+local DEBUG_ENABLED = true
+local function DebugPrint(...)
+	if DEBUG_ENABLED then
+		print("[AdminClient]", ...)
+	end
+end
+local function DebugWarn(...)
+	if DEBUG_ENABLED then
+		warn("[AdminClient]", ...)
+	end
+end
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -798,3 +810,146 @@ UserInputService.InputBegan:Connect(function(input, processed)
 end)
 
 print("✅ AdminClient: Görsel sorunlar düzeltildi, modern UI aktif!")
+
+-- ✅ EVENT NOTIFICATION UI
+local EventNotificationFrame
+local function CreateEventNotification()
+	EventNotificationFrame = Instance.new("Frame")
+	EventNotificationFrame.Name = "EventNotification"
+	EventNotificationFrame.Size = UDim2.new(0.4, 0, 0.1, 0)
+	EventNotificationFrame.Position = UDim2.new(0.3, 0, -0.15, 0)
+	EventNotificationFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+	EventNotificationFrame.BorderSizePixel = 0
+	EventNotificationFrame.Parent = ScreenGui
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = EventNotificationFrame
+	
+	local eventTitle = Instance.new("TextLabel")
+	eventTitle.Name = "Title"
+	eventTitle.Size = UDim2.new(1, -20, 0.5, 0)
+	eventTitle.Position = UDim2.new(0, 10, 0.1, 0)
+	eventTitle.BackgroundTransparency = 1
+	eventTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
+	eventTitle.Font = Enum.Font.GothamBold
+	eventTitle.TextSize = 20
+	eventTitle.TextXAlignment = Enum.TextXAlignment.Left
+	eventTitle.Parent = EventNotificationFrame
+	
+	local countdown = Instance.new("TextLabel")
+	countdown.Name = "Countdown"
+	countdown.Size = UDim2.new(1, -20, 0.4, 0)
+	countdown.Position = UDim2.new(0, 10, 0.5, 0)
+	eventTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+	countdown.Font = Enum.Font.Gotham
+	countdown.TextSize = 16
+	countdown.TextXAlignment = Enum.TextXAlignment.Left
+	countdown.Parent = EventNotificationFrame
+	
+	return EventNotificationFrame
+end
+
+if not EventNotificationFrame then
+	CreateEventNotification()
+end
+
+local function ShowEventNotification(eventName, duration)
+	if not EventNotificationFrame then return end
+	
+	local title = EventNotificationFrame:FindFirstChild("Title")
+	local countdown = EventNotificationFrame:FindFirstChild("Countdown")
+	
+	if title then
+		title.Text = "🎉 " .. eventName
+	end
+	
+	-- Animasyonla aç
+	TweenService:Create(EventNotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.3, 0, 0.05, 0)
+	}):Play()
+	
+	-- Geri sayım
+	local startTime = tick()
+	local endTime = startTime + duration
+	
+	spawn(function()
+		while tick() < endTime do
+			local remaining = math.ceil(endTime - tick())
+			if countdown then
+				countdown.Text = string.format("⏱️ Kalan: %d:%02d", math.floor(remaining / 60), remaining % 60)
+			end
+			task.wait(1)
+		end
+		
+		-- Animasyonla kapat
+		TweenService:Create(EventNotificationFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+			Position = UDim2.new(0.3, 0, -0.15, 0)
+		}):Play()
+	end)
+end
+
+-- ✅ FEEDBACK SİSTEMİ
+local FeedbackFrame
+local function CreateFeedbackUI()
+	FeedbackFrame = Instance.new("Frame")
+	FeedbackFrame.Name = "Feedback"
+	FeedbackFrame.Size = UDim2.new(0.3, 0, 0.08, 0)
+	FeedbackFrame.Position = UDim2.new(0.35, 0, 0.9, 0)
+	FeedbackFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+	FeedbackFrame.BorderSizePixel = 0
+	FeedbackFrame.Visible = false
+	FeedbackFrame.Parent = ScreenGui
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = FeedbackFrame
+	
+	local feedbackText = Instance.new("TextLabel")
+	feedbackText.Name = "Text"
+	feedbackText.Size = UDim2.new(1, -20, 1, 0)
+	feedbackText.Position = UDim2.new(0, 10, 0, 0)
+	feedbackText.BackgroundTransparency = 1
+	feedbackText.TextColor3 = Color3.fromRGB(255, 255, 255)
+	feedbackText.Font = Enum.Font.GothamBold
+	feedbackText.TextSize = 18
+	feedbackText.Parent = FeedbackFrame
+	
+	return FeedbackFrame
+end
+
+if not FeedbackFrame then
+	CreateFeedbackUI()
+end
+
+local function ShowFeedback(message, success)
+	if not FeedbackFrame then return end
+	
+	local textLabel = FeedbackFrame:FindFirstChild("Text")
+	if textLabel then
+		textLabel.Text = (success and "✅ " or "❌ ") .. message
+		textLabel.TextColor3 = success and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 50, 50)
+	end
+	
+	FeedbackFrame.BackgroundColor3 = success and Color3.fromRGB(20, 50, 30) or Color3.fromRGB(50, 20, 20)
+	FeedbackFrame.Visible = true
+	
+	-- 3 saniye sonra kapat
+	task.delay(3, function()
+		FeedbackFrame.Visible = false
+	end)
+end
+
+-- ✅ SERVER'DAN GELEN FEEDBACK'LARI DİNLE
+local AdminDataRemote = Remotes:FindFirstChild("AdminDataUpdate")
+if AdminDataRemote then
+	AdminDataRemote.OnClientEvent:Connect(function(dataType, data)
+		if dataType == "CommandResult" then
+			ShowFeedback(data.message, data.success)
+		elseif dataType == "EventStarted" then
+			ShowEventNotification(data.eventName, data.duration)
+		end
+	end)
+end
+
+DebugPrint("✅ Event Notification UI ve Feedback sistemi aktif!")

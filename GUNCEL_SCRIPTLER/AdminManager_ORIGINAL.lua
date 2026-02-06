@@ -1,5 +1,68 @@
 -- ServerScriptService.Systems.AdminManager
 
+-- ✅ DEBUG/PRINT TOGGLE
+local DEBUG_MODE = true
+local function DebugPrint(...)
+	if DEBUG_MODE then
+		print("[AdminManager]", ...)
+	end
+end
+local function DebugWarn(...)
+	if DEBUG_MODE then
+		warn("[AdminManager]", ...)
+	end
+end
+
+-- ✅ RATE LIMITING
+local CommandCooldowns = {}
+local MAX_COMMANDS_PER_MINUTE = 10
+local COOLDOWN_WINDOW = 60
+
+local function CheckRateLimit(player)
+	local userId = player.UserId
+	local currentTime = tick()
+	
+	if not CommandCooldowns[userId] then
+		CommandCooldowns[userId] = {}
+	end
+	
+	-- Eski komutları temizle
+	local validCommands = {}
+	for _, cmdTime in ipairs(CommandCooldowns[userId]) do
+		if currentTime - cmdTime < COOLDOWN_WINDOW then
+			table.insert(validCommands, cmdTime)
+		end
+	end
+	CommandCooldowns[userId] = validCommands
+	
+	if #CommandCooldowns[userId] >= MAX_COMMANDS_PER_MINUTE then
+		return false, "⚠️ Çok fazla komut! Lütfen bekleyin."
+	end
+	
+	table.insert(CommandCooldowns[userId], currentTime)
+	return true
+end
+
+-- ✅ COMMAND HISTORY
+local CommandHistory = {}
+local MAX_HISTORY = 100
+
+local function LogCommand(player, commandType, target, details)
+	table.insert(CommandHistory, 1, {
+		admin = player.Name,
+		command = commandType,
+		target = target,
+		details = details,
+		timestamp = os.date("%Y-%m-%d %H:%M:%S"),
+		tick = tick()
+	})
+	
+	-- Max history limitini koru
+	while #CommandHistory > MAX_HISTORY do
+		table.remove(CommandHistory)
+	end
+end
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -109,18 +172,37 @@ local function GivePotionToPlayer(player, potionName, amount)
 end
 
 AdminEvent.OnServerEvent:Connect(function(admin, category, action, data)
+	-- ✅ ADMIN KONTROLÜ
 	if not Admins[admin.Name] then 
-		warn("❌ Yetkisiz admin girişimi:", admin.Name)
+		DebugWarn("❌ Yetkisiz admin girişimi:", admin.Name)
 		return 
 	end
+	
+	-- ✅ RATE LIMITING
+	local canExecute, errorMsg = CheckRateLimit(admin)
+	if not canExecute then
+		DebugWarn("⚠️ Rate limit:", admin.Name, errorMsg)
+		-- Client'a feedback gönder
+		local feedbackRemote = Remotes:FindFirstChild("AdminDataUpdate")
+		if feedbackRemote then
+			feedbackRemote:FireClient(admin, "CommandResult", {
+				success = false,
+				message = errorMsg
+			})
+		end
+		return
+	end
+	
+	-- ✅ LOG COMMAND
+	LogCommand(admin, category .. ":" .. action, data.Target or "N/A", data)
 
-	print("🛡️ [ADMIN] İstek:", admin.Name, "→", category, "→", action)
+	DebugPrint("🛡️ [ADMIN] İstek:", admin.Name, "→", category, "→", action)
 
 	if category == "Event" then
 		-- EventManager'e yönlendir
 		local AdminBindable = Remotes:FindFirstChild("AdminControlBindable")
 		if AdminBindable then
-			print("🛡️ [ADMIN] EventManager Sinyali:", action)
+			DebugPrint("🛡️ [ADMIN] EventManager Sinyali:", action)
 			AdminBindable:Fire(admin, action, data) 
 		end
 		return
