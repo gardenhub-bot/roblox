@@ -132,8 +132,10 @@ AdminEvent.OnServerEvent:Connect(function(admin, category, action, data)
 	-- HEDEF BUL
 	if targetName and targetName ~= "" then
 		-- Önce online oyuncuları kontrol et
+		local lowerTarget = string.lower(targetName)
+		local targetLen = #targetName
 		for _, p in pairs(Players:GetPlayers()) do
-			if string.lower(p.Name):sub(1, #targetName) == string.lower(targetName) then
+			if string.lower(p.Name):sub(1, targetLen) == lowerTarget then
 				targetPlayer = p
 				targetId = p.UserId
 				break
@@ -862,14 +864,13 @@ function AddDropdown(page, options, defaultText)
 
 	local selected = nil
 
-	-- Dropdown bilgisini kaydet
+	-- Dropdown bilgisini kaydet (Not added to openDropdowns until actually opened)
 	local dropdownInfo = {
 		frame = frame,
 		list = list,
 		arrow = arrow,
 		mainBtn = mainBtn
 	}
-	table.insert(openDropdowns, dropdownInfo)
 
 	for _, opt in ipairs(options) do
 		local b = Instance.new("TextButton")
@@ -1266,6 +1267,7 @@ print("✅ AdminClient: Görsel sorunlar düzeltildi, modern UI aktif!")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local MessagingService = game:GetService("MessagingService")
 local DataStoreService = game:GetService("DataStoreService")
 
@@ -1278,6 +1280,10 @@ end
 
 -- ✅ GLOBAL EVENT DATASTORE (TÜM SUNUCULAR İÇİN)
 local EventDataStore = DataStoreService:GetDataStore("GlobalEventData_V2")
+
+-- ✅ GAMECONFIG (Cached at module level)
+local Modules = ReplicatedStorage:WaitForChild("Modules")
+local GameConfig = require(Modules:WaitForChild("GameConfig"))
 
 -- ✅ EVENT TANIMLARI (Boss/Dungeon + 7 Buff Eventi)
 local events = {
@@ -1422,8 +1428,6 @@ local function ApplyEventToPlayer(player, eventKey)
 
 	-- Speed güncellemesi
 	if eventKey == "SpeedFrenzy" then
-		local Modules = ReplicatedStorage:WaitForChild("Modules")
-		local GameConfig = require(Modules:WaitForChild("GameConfig"))
 		GameConfig.UpdateWalkSpeed(player)
 	end
 
@@ -1448,8 +1452,6 @@ local function RemoveEventFromPlayer(player, eventKey)
 	end
 
 	if eventKey == "SpeedFrenzy" then
-		local Modules = ReplicatedStorage:WaitForChild("Modules")
-		local GameConfig = require(Modules:WaitForChild("GameConfig"))
 		GameConfig.UpdateWalkSpeed(player)
 	end
 
@@ -1527,7 +1529,7 @@ local function NotifyAllPlayers(message, eventName, color, icon, duration)
 			notification.Parent = playerGui
 
 			-- ✅ ANIMASYON (SAĞ TARAFTAN GELSİN)
-			local tweenIn = game:GetService("TweenService"):Create(frame, 
+			local tweenIn = TweenService:Create(frame, 
 				TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
 				{Position = UDim2.new(1, -370, 0, 20)}
 			)
@@ -1536,13 +1538,13 @@ local function NotifyAllPlayers(message, eventName, color, icon, duration)
 			-- ✅ TIMER GÖSTER (EĞER SÜRE VARSA)
 			if duration and duration > 0 then
 				task.spawn(function()
-					local endTime = tick() + duration
-					while tick() < endTime and notification.Parent do
-						local remaining = math.max(0, endTime - tick())
+					local remaining = duration
+					while remaining > 0 and notification.Parent do
 						local minutes = math.floor(remaining / 60)
 						local seconds = math.floor(remaining % 60)
 						timerLabel.Text = string.format("⏰ %02d:%02d remaining", minutes, seconds)
 						task.wait(1)
+						remaining = remaining - 1
 					end
 				end)
 			end
@@ -1551,7 +1553,7 @@ local function NotifyAllPlayers(message, eventName, color, icon, duration)
 			if not duration or duration == 0 then
 				task.delay(5, function()
 					if notification and notification.Parent then
-						local tweenOut = game:GetService("TweenService"):Create(frame, 
+						local tweenOut = TweenService:Create(frame, 
 							TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), 
 							{Position = UDim2.new(1, 0, 0, 20)}
 						)
@@ -1792,7 +1794,10 @@ function GetEventRemainingTime()
 	return math.max(0, eventEndTime - tick())
 end
 
-print("✅ EventManager: Yüklendi - " .. #events .. " event tanımlandı (MessagingService aktif)")
+local eventCount = 0
+for _ in pairs(events) do eventCount = eventCount + 1 end
+
+print("✅ EventManager: Yüklendi - " .. eventCount .. " event tanımlandı (MessagingService aktif)")
 
 return {
 	GetEventMultiplier = GetEventMultiplier,
