@@ -864,7 +864,7 @@ function AddDropdown(page, options, defaultText)
 
 	local selected = nil
 
-	-- Dropdown bilgisini kaydet (not added to openDropdowns until actually opened)
+	-- Dropdown bilgisini kaydet (Not added to openDropdowns until actually opened)
 	local dropdownInfo = {
 		frame = frame,
 		list = list,
@@ -1282,8 +1282,8 @@ end
 local EventDataStore = DataStoreService:GetDataStore("GlobalEventData_V2")
 
 -- ✅ GAMECONFIG (Cached at module level)
-local EventModules = ReplicatedStorage:WaitForChild("Modules")
-local EventGameConfig = require(EventModules:WaitForChild("GameConfig"))
+local Modules = ReplicatedStorage:WaitForChild("Modules")
+local GameConfig = require(Modules:WaitForChild("GameConfig"))
 
 -- ✅ EVENT TANIMLARI (Boss/Dungeon + 7 Buff Eventi)
 local events = {
@@ -1428,7 +1428,7 @@ local function ApplyEventToPlayer(player, eventKey)
 
 	-- Speed güncellemesi
 	if eventKey == "SpeedFrenzy" then
-		EventGameConfig.UpdateWalkSpeed(player)
+		GameConfig.UpdateWalkSpeed(player)
 	end
 
 	print("✅ Event uygulandı:", player.Name, "→", eventKey)
@@ -1452,7 +1452,7 @@ local function RemoveEventFromPlayer(player, eventKey)
 	end
 
 	if eventKey == "SpeedFrenzy" then
-		EventGameConfig.UpdateWalkSpeed(player)
+		GameConfig.UpdateWalkSpeed(player)
 	end
 
 	print("❌ Event kaldırıldı:", player.Name, "→", eventKey)
